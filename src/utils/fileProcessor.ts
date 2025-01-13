@@ -13,13 +13,13 @@ export const processFile = async (file: File): Promise<FileData[]> => {
         const jsonData = utils.sheet_to_json(firstSheet);
         
         const processedData: FileData[] = jsonData.map((row: any) => ({
-          consignNumber: String(row.ConsignNumber || ''),
-          supplierReference: String(row.SupplierReference || ''),
+          consignNumber: String(row.ConsignNumber || row['Consign Number'] || ''),
+          supplierReference: String(row.SupplierReference || row['Supplier Ref'] || ''),
           variety: String(row.Variety || ''),
-          cartonsSent: Number(row.CartonsSent || 0),
+          cartonsSent: Number(row.CartonsSent || row['# Ctns Sent'] || 0),
           received: Number(row.Received || 0),
-          soldOnMarket: Number(row.SoldOnMarket || 0),
-          totalValue: Number(row.TotalValue || 0),
+          soldOnMarket: Number(row.SoldOnMarket || row['Sold on market'] || 0),
+          totalValue: Number(row.TotalValue || row['Total Value'] || 0),
         }));
         
         resolve(processedData);
@@ -39,24 +39,30 @@ const getLast4Digits = (reference: string): string => {
 };
 
 export const matchData = (loadData: FileData[], salesData: FileData[]): MatchedRecord[] => {
-  const loadMap = new Map<string, FileData>();
+  // Group load data by consignment number
+  const loadMap = new Map<string, FileData[]>();
   
-  // Create map of load data using last 4 digits of reference
   loadData.forEach(record => {
-    const key = getLast4Digits(record.supplierReference);
-    loadMap.set(key, record);
+    if (!loadMap.has(record.consignNumber)) {
+      loadMap.set(record.consignNumber, []);
+    }
+    loadMap.get(record.consignNumber)?.push(record);
   });
   
   // Match sales data with load data
   return salesData.map(salesRecord => {
-    const key = getLast4Digits(salesRecord.supplierReference);
-    const loadRecord = loadMap.get(key);
+    // Extract the base consignment number from supplier reference (before the asterisk if present)
+    const baseConsignNumber = salesRecord.supplierReference.split('*')[0];
+    const loadRecords = loadMap.get(baseConsignNumber) || [];
     
-    if (loadRecord && loadRecord.cartonsSent === salesRecord.cartonsSent) {
+    // Try to find a matching record with the same cartons count
+    const loadRecord = loadRecords.find(record => record.cartonsSent === salesRecord.received);
+    
+    if (loadRecord) {
       return {
+        ...loadRecord,
         ...salesRecord,
         status: 'matched',
-        matchKey: key,
       };
     }
     
@@ -82,9 +88,18 @@ export const calculateStatistics = (records: MatchedRecord[]): Statistics => {
 export const formatNumber = (value: number, type: 'number' | 'currency' | 'percent' = 'number'): string => {
   switch (type) {
     case 'currency':
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+      return new Intl.NumberFormat('en-US', { 
+        style: 'currency', 
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value);
     case 'percent':
-      return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1 }).format(value / 100);
+      return new Intl.NumberFormat('en-US', { 
+        style: 'percent', 
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      }).format(value / 100);
     default:
       return new Intl.NumberFormat('en-US').format(value);
   }
