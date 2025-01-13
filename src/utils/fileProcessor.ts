@@ -1,5 +1,5 @@
 import { read, utils } from 'xlsx';
-import { FileData, MatchedRecord } from '@/types';
+import { FileData, MatchedRecord, Statistics } from '@/types';
 
 export const processFile = async (file: File): Promise<FileData[]> => {
   return new Promise((resolve, reject) => {
