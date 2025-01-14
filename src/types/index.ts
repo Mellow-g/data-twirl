@@ -1,6 +1,13 @@
+export type FileType = 'load' | 'sales';
+
 export interface FileData {
+  [key: string]: any;
+}
+
+export interface MatchedRecord {
   consignNumber: string;
-  supplierReference: string;
+  supplierRef: string;
+  status: 'Matched' | 'Unmatched';
   variety: string;
   cartonsSent: number;
   received: number;
@@ -8,16 +15,10 @@ export interface FileData {
   totalValue: number;
 }
 
-export interface MatchedRecord extends FileData {
-  status: 'matched' | 'unmatched';
-  matchKey?: string;
-}
-
 export interface Statistics {
   totalRecords: number;
   matchedCount: number;
   unmatchedCount: number;
-  matchRate: number;
+  totalValue: number;
+  averageValue: number;
 }
-
-export type FileType = 'load' | 'sales';
