@@ -21,4 +21,5 @@ export interface Statistics {
   unmatchedCount: number;
   totalValue: number;
   averageValue: number;
+  matchRate: number;
 }

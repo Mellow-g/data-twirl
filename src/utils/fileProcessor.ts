@@ -1,5 +1,22 @@
 import * as XLSX from 'xlsx';
-import { FileData, MatchedRecord } from '@/types';
+import { FileData, MatchedRecord, Statistics } from '@/types';
+
+export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {
+  if (type === 'currency') {
+    return new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency: 'AUD' 
+    }).format(value);
+  }
+  if (type === 'percent') {
+    return new Intl.NumberFormat('en-AU', { 
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value / 100);
+  }
+  return new Intl.NumberFormat('en-AU').format(value);
+}
 
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
@@ -30,7 +47,6 @@ function getLast4Digits(ref: string | number): string {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  // Create a map of load data with last 4 digits as key
   const loadDataMap = new Map();
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
@@ -47,16 +63,14 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
-  // Process each sales record and match with load data
   return salesData.map(sale => {
     const supplierRef = sale['Supplier Ref'];
     const last4 = getLast4Digits(supplierRef);
     const loadRecords = loadDataMap.get(last4) || [];
     
-    // Find matching load record with same cartons count if possible
     const loadInfo = loadRecords.find(record => 
       record.cartonsSent === Number(sale['Received'])
-    ) || loadRecords[0]; // fallback to first record if no exact match
+    ) || loadRecords[0];
 
     return {
       consignNumber: loadInfo ? loadInfo.consignNumber : '',
@@ -69,6 +83,20 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       totalValue: Number(sale['Total Value']) || 0
     };
   });
+}
+
+export function calculateStatistics(data: MatchedRecord[]): Statistics {
+  const matchedRecords = data.filter(record => record.status === 'Matched');
+  const totalValue = data.reduce((sum, record) => sum + record.totalValue, 0);
+  
+  return {
+    totalRecords: data.length,
+    matchedCount: matchedRecords.length,
+    unmatchedCount: data.length - matchedRecords.length,
+    totalValue,
+    averageValue: data.length > 0 ? totalValue / data.length : 0,
+    matchRate: data.length > 0 ? (matchedRecords.length / data.length) * 100 : 0
+  };
 }
 
 export function generateExcel(data: MatchedRecord[]): void {
@@ -85,7 +113,6 @@ export function generateExcel(data: MatchedRecord[]): void {
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   
-  // Format Total Value as currency
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   const totalValueCol = 'H';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {

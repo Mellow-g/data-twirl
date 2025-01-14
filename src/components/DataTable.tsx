@@ -28,7 +28,7 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   const filteredData = useMemo(() => {
     return data.filter(record => {
-      const matchesStatus = statusFilter === "all" || record.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       return matchesStatus && matchesVariety;
     });
@@ -96,16 +96,16 @@ export const DataTable = ({ data }: DataTableProps) => {
               <TableRow
                 key={index}
                 className={`
-                  ${record.status === 'unmatched' ? 'bg-destructive/10' : 'bg-background'}
+                  ${record.status === 'Unmatched' ? 'bg-destructive/10' : 'bg-background'}
                   hover:bg-card/50
                 `}
               >
                 <TableCell className="text-foreground">{record.consignNumber}</TableCell>
-                <TableCell className="text-foreground">{record.supplierReference}</TableCell>
+                <TableCell className="text-foreground">{record.supplierRef}</TableCell>
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                      ${record.status === 'matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
+                      ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
                     }
                   >
                     {record.status}
