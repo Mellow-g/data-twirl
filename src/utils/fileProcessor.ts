@@ -10,16 +10,19 @@ export const processFile = async (file: File): Promise<FileData[]> => {
         const data = e.target?.result;
         const workbook = read(data, { type: 'binary' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = utils.sheet_to_json(firstSheet);
+        const jsonData = utils.sheet_to_json(firstSheet, {
+          raw: true,
+          defval: ''
+        });
         
         const processedData: FileData[] = jsonData.map((row: any) => ({
-          consignNumber: String(row.ConsignNumber || row['Consign Number'] || ''),
-          supplierReference: String(row.SupplierReference || row['Supplier Ref'] || ''),
-          variety: String(row.Variety || ''),
-          cartonsSent: Number(row.CartonsSent || row['# Ctns Sent'] || 0),
-          received: Number(row.Received || 0),
-          soldOnMarket: Number(row.SoldOnMarket || row['Sold on market'] || 0),
-          totalValue: Number(row.TotalValue || row['Total Value'] || 0),
+          consignNumber: String(row['Consign'] || ''),
+          supplierReference: String(row['Supplier Ref'] || ''),
+          variety: String(row['Variety'] || ''),
+          cartonsSent: Number(row['Sum of # Ctns']) || 0,
+          received: Number(row['Received']) || 0,
+          soldOnMarket: Number(row['Sold']) || 0,
+          totalValue: Number(row['Total Value']) || 0,
         }));
         
         resolve(processedData);
@@ -33,42 +36,62 @@ export const processFile = async (file: File): Promise<FileData[]> => {
   });
 };
 
-const getLast4Digits = (reference: string): string => {
-  const numbers = reference.replace(/\D/g, '');
+const getLast4Digits = (ref: string): string => {
+  if (!ref) return '';
+  const numbers = ref.toString().replace(/\D/g, '');
   return numbers.slice(-4);
 };
 
 export const matchData = (loadData: FileData[], salesData: FileData[]): MatchedRecord[] => {
-  // Group load data by consignment number
-  const loadMap = new Map<string, FileData[]>();
+  // Create a map of load data with last 4 digits as key
+  const loadDataMap = new Map<string, Array<{
+    consignNumber: string;
+    variety: string;
+    cartonsSent: number;
+  }>>();
   
-  loadData.forEach(record => {
-    if (!loadMap.has(record.consignNumber)) {
-      loadMap.set(record.consignNumber, []);
+  loadData.forEach(load => {
+    const consignNumber = load.consignNumber.toString();
+    const last4 = getLast4Digits(consignNumber);
+    if (last4) {
+      if (!loadDataMap.has(last4)) {
+        loadDataMap.set(last4, []);
+      }
+      loadDataMap.get(last4)?.push({
+        consignNumber,
+        variety: load.variety,
+        cartonsSent: load.cartonsSent
+      });
     }
-    loadMap.get(record.consignNumber)?.push(record);
   });
   
-  // Match sales data with load data
-  return salesData.map(salesRecord => {
-    // Extract the base consignment number from supplier reference (before the asterisk if present)
-    const baseConsignNumber = salesRecord.supplierReference.split('*')[0];
-    const loadRecords = loadMap.get(baseConsignNumber) || [];
+  // Process each sales record and match with load data
+  return salesData.map(sale => {
+    const supplierRef = sale.supplierReference;
+    const last4 = getLast4Digits(supplierRef);
+    const loadRecords = loadDataMap.get(last4) || [];
     
-    // Try to find a matching record with the same cartons count
-    const loadRecord = loadRecords.find(record => record.cartonsSent === salesRecord.received);
-    
-    if (loadRecord) {
+    // Find matching load record with same cartons count if possible
+    const loadInfo = loadRecords.find(record => 
+      record.cartonsSent === sale.received
+    ) || loadRecords[0]; // fallback to first record if no exact match
+
+    if (loadInfo) {
       return {
-        ...loadRecord,
-        ...salesRecord,
-        status: 'matched',
+        consignNumber: loadInfo.consignNumber,
+        supplierReference: supplierRef,
+        status: 'matched' as const,
+        variety: loadInfo.variety,
+        cartonsSent: loadInfo.cartonsSent,
+        received: sale.received,
+        soldOnMarket: sale.soldOnMarket,
+        totalValue: sale.totalValue
       };
     }
-    
+
     return {
-      ...salesRecord,
-      status: 'unmatched',
+      ...sale,
+      status: 'unmatched' as const,
     };
   });
 };
@@ -106,24 +129,22 @@ export const formatNumber = (value: number, type: 'number' | 'currency' | 'perce
 };
 
 export const generateExcel = (data: MatchedRecord[]): void => {
-  // Transform data for export
   const exportData = data.map(item => ({
     'Consign Number': item.consignNumber,
-    'Supplier Reference': item.supplierReference,
+    'Supplier Ref': item.supplierReference,
     'Status': item.status,
     'Variety': item.variety,
-    'Cartons Sent': item.cartonsSent,
+    '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
-    'Sold on Market': item.soldOnMarket,
+    'Sold on market': item.soldOnMarket,
     'Total Value': item.totalValue,
   }));
 
-  // Create worksheet
   const ws = utils.json_to_sheet(exportData);
   
-  // Format currency column
+  // Format Total Value as currency
   const range = utils.decode_range(ws['!ref'] || 'A1');
-  const totalValueCol = 'H';  // Column for Total Value
+  const totalValueCol = 'H';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
     const cell = totalValueCol + (row + 1);
     if (ws[cell]) {
@@ -131,7 +152,6 @@ export const generateExcel = (data: MatchedRecord[]): void => {
     }
   }
 
-  // Create workbook and save
   const wb = utils.book_new();
   utils.book_append_sheet(wb, ws, 'Matching Report');
   writeFile(wb, 'matching_report.xlsx');
