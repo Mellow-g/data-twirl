@@ -6,55 +6,121 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MatchedRecord } from "@/types";
-import { formatNumber } from "@/utils/fileProcessor";
+import { formatNumber, generateExcel } from "@/utils/fileProcessor";
+import { useState, useMemo } from "react";
+import { Download } from "lucide-react";
 
 interface DataTableProps {
   data: MatchedRecord[];
 }
 
 export const DataTable = ({ data }: DataTableProps) => {
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [varietyFilter, setVarietyFilter] = useState<string>("all");
+
+  const varieties = useMemo(() => {
+    const uniqueVarieties = new Set(data.map(record => record.variety));
+    return Array.from(uniqueVarieties).filter(Boolean);
+  }, [data]);
+
+  const filteredData = useMemo(() => {
+    return data.filter(record => {
+      const matchesStatus = statusFilter === "all" || record.status === statusFilter;
+      const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
+      return matchesStatus && matchesVariety;
+    });
+  }, [data, statusFilter, varietyFilter]);
+
+  const handleExport = () => {
+    generateExcel(filteredData);
+  };
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Consign Number</TableHead>
-            <TableHead>Supplier Reference</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Variety</TableHead>
-            <TableHead className="text-right">Cartons Sent</TableHead>
-            <TableHead className="text-right">Received</TableHead>
-            <TableHead className="text-right">Sold on Market</TableHead>
-            <TableHead className="text-right">Total Value</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((record, index) => (
-            <TableRow
-              key={index}
-              className={record.status === 'unmatched' ? 'bg-red-500/10' : undefined}
-            >
-              <TableCell>{record.consignNumber}</TableCell>
-              <TableCell>{record.supplierReference}</TableCell>
-              <TableCell>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                    ${record.status === 'matched' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`
-                  }
-                >
-                  {record.status}
-                </span>
-              </TableCell>
-              <TableCell>{record.variety}</TableCell>
-              <TableCell className="text-right">{formatNumber(record.cartonsSent)}</TableCell>
-              <TableCell className="text-right">{formatNumber(record.received)}</TableCell>
-              <TableCell className="text-right">{formatNumber(record.soldOnMarket)}</TableCell>
-              <TableCell className="text-right">{formatNumber(record.totalValue, 'currency')}</TableCell>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 items-center justify-between bg-card p-4 rounded-lg">
+        <div className="flex flex-wrap gap-4">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px] bg-background text-foreground">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="matched">Matched</SelectItem>
+              <SelectItem value="unmatched">Unmatched</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={varietyFilter} onValueChange={setVarietyFilter}>
+            <SelectTrigger className="w-[180px] bg-background text-foreground">
+              <SelectValue placeholder="Filter by variety" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Varieties</SelectItem>
+              {varieties.map((variety) => (
+                <SelectItem key={variety} value={variety}>
+                  {variety}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button 
+          onClick={handleExport}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export to Excel
+        </Button>
+      </div>
+
+      <div className="rounded-md border border-primary/20">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-card hover:bg-card/90">
+              <TableHead className="text-primary">Consign Number</TableHead>
+              <TableHead className="text-primary">Supplier Reference</TableHead>
+              <TableHead className="text-primary">Status</TableHead>
+              <TableHead className="text-primary">Variety</TableHead>
+              <TableHead className="text-right text-primary">Cartons Sent</TableHead>
+              <TableHead className="text-right text-primary">Received</TableHead>
+              <TableHead className="text-right text-primary">Sold on Market</TableHead>
+              <TableHead className="text-right text-primary">Total Value</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {filteredData.map((record, index) => (
+              <TableRow
+                key={index}
+                className={`
+                  ${record.status === 'unmatched' ? 'bg-destructive/10' : 'bg-background'}
+                  hover:bg-card/50
+                `}
+              >
+                <TableCell className="text-foreground">{record.consignNumber}</TableCell>
+                <TableCell className="text-foreground">{record.supplierReference}</TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                      ${record.status === 'matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
+                    }
+                  >
+                    {record.status}
+                  </span>
+                </TableCell>
+                <TableCell className="text-foreground">{record.variety}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.received)}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
