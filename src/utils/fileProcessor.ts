@@ -58,6 +58,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       loadDataMap.get(last4).push({
         consignNumber,
         variety: load['Variety'] || '',
+        cartonType: load['Carton Type'] || '',
         cartonsSent: Number(load['Sum of # Ctns']) || 0
       });
     }
@@ -72,15 +73,22 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       record.cartonsSent === Number(sale['Received'])
     ) || loadRecords[0];
 
+    const received = Number(sale['Received']) || 0;
+    const soldOnMarket = Number(sale['Sold']) || 0;
+
     return {
       consignNumber: loadInfo ? loadInfo.consignNumber : '',
       supplierRef: supplierRef || '',
       status: loadInfo ? 'Matched' : 'Unmatched',
       variety: loadInfo ? loadInfo.variety : '',
+      cartonType: loadInfo ? loadInfo.cartonType : '',
       cartonsSent: loadInfo ? loadInfo.cartonsSent : 0,
-      received: Number(sale['Received']) || 0,
-      soldOnMarket: Number(sale['Sold']) || 0,
-      totalValue: Number(sale['Total Value']) || 0
+      received,
+      deviationSentReceived: loadInfo ? loadInfo.cartonsSent - received : 0,
+      soldOnMarket,
+      deviationReceivedSold: received - soldOnMarket,
+      totalValue: Number(sale['Total Value']) || 0,
+      reconciled: loadInfo ? (loadInfo.cartonsSent === received && received === soldOnMarket) : false
     };
   });
 }
@@ -105,16 +113,20 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Supplier Ref': item.supplierRef,
     'Status': item.status,
     'Variety': item.variety,
+    'Carton Type': item.cartonType,
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
+    'Deviation Sent/Received': item.deviationSentReceived,
     'Sold on market': item.soldOnMarket,
-    'Total Value': item.totalValue
+    'Deviation Received/Sold': item.deviationReceivedSold,
+    'Total Value': item.totalValue,
+    'Reconciled': item.reconciled ? 'Yes' : 'No'
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  const totalValueCol = 'H';
+  const totalValueCol = 'K';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
     const cell = totalValueCol + (row + 1);
     if (ws[cell]) {
