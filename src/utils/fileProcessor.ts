@@ -69,7 +69,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
       const supplierRef = sale['Supplier Ref'];
-      return !supplierRef?.includes('DESTINATION: Botha & Roodt (Pre)');
+      // Filter out entries containing "DESTINATION:" and ensure only numeric values
+      return !supplierRef?.includes('DESTINATION:') && /^\d+$/.test(supplierRef?.toString().trim() || '');
     })
     .map(sale => {
       const supplierRef = sale['Supplier Ref'];
