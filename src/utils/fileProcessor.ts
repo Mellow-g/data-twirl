@@ -50,7 +50,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = new Map();
   const processedConsignments = new Set();
   
-  // First, process all load data
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
@@ -67,11 +66,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
-  // Process sales data and create matched records
-  const matchedRecords = salesData
+  const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
       const supplierRef = sale['Supplier Ref'];
-      // Filter out entries containing "DESTINATION: Botha & Roodt (Pre)"
       return !supplierRef?.includes('DESTINATION: Botha & Roodt (Pre)');
     })
     .map(sale => {
@@ -93,7 +90,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       return {
         consignNumber: loadInfo ? loadInfo.consignNumber : '',
         supplierRef: supplierRef || '',
-        status: loadInfo ? 'Matched' : 'Unmatched',
+        status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
         variety: loadInfo ? loadInfo.variety : '',
         cartonType: loadInfo ? loadInfo.cartonType : '',
         cartonsSent: loadInfo ? loadInfo.cartonsSent : 0,
@@ -106,14 +103,13 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       };
     });
 
-  // Add unmatched load records
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     if (!processedConsignments.has(consignNumber)) {
       matchedRecords.push({
         consignNumber,
         supplierRef: '',
-        status: 'Unmatched',
+        status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
         cartonsSent: Number(load['Sum of # Ctns']) || 0,
