@@ -9,10 +9,14 @@ export interface MatchedRecord {
   supplierRef: string;
   status: 'Matched' | 'Unmatched';
   variety: string;
+  cartonType: string;
   cartonsSent: number;
   received: number;
+  deviationSentReceived: number;
   soldOnMarket: number;
+  deviationReceivedSold: number;
   totalValue: number;
+  reconciled: boolean;
 }
 
 export interface Statistics {

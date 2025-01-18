@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MatchedRecord } from "@/types";
 import { formatNumber, generateExcel } from "@/utils/fileProcessor";
 import { useState, useMemo } from "react";
-import { Download } from "lucide-react";
+import { Download, Check, X } from "lucide-react";
 
 interface DataTableProps {
   data: MatchedRecord[];
@@ -85,10 +85,14 @@ export const DataTable = ({ data }: DataTableProps) => {
               <TableHead className="text-primary">Supplier Reference</TableHead>
               <TableHead className="text-primary">Status</TableHead>
               <TableHead className="text-primary">Variety</TableHead>
+              <TableHead className="text-primary">Carton Type</TableHead>
               <TableHead className="text-right text-primary">Cartons Sent</TableHead>
               <TableHead className="text-right text-primary">Received</TableHead>
+              <TableHead className="text-right text-primary">Deviation Sent/Received</TableHead>
               <TableHead className="text-right text-primary">Sold on Market</TableHead>
+              <TableHead className="text-right text-primary">Deviation Received/Sold</TableHead>
               <TableHead className="text-right text-primary">Total Value</TableHead>
+              <TableHead className="text-center text-primary">Reconciled</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -112,10 +116,20 @@ export const DataTable = ({ data }: DataTableProps) => {
                   </span>
                 </TableCell>
                 <TableCell className="text-foreground">{record.variety}</TableCell>
+                <TableCell className="text-foreground">{record.cartonType}</TableCell>
                 <TableCell className="text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
                 <TableCell className="text-right text-foreground">{formatNumber(record.received)}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
                 <TableCell className="text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
+                <TableCell className="text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
                 <TableCell className="text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
+                <TableCell className="text-center">
+                  {record.reconciled ? (
+                    <Check className="h-5 w-5 text-green-500 mx-auto" />
+                  ) : (
+                    <X className="h-5 w-5 text-destructive mx-auto" />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
