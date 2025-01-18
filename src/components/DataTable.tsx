@@ -77,9 +77,9 @@ export const DataTable = ({ data }: DataTableProps) => {
         </Button>
       </div>
 
-      <div className="rounded-md border border-primary/20">
+      <div className="rounded-md border border-primary/20 max-h-[600px] overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-card hover:bg-card/90">
               <TableHead className="text-primary">Consign Number</TableHead>
               <TableHead className="text-primary">Supplier Reference</TableHead>

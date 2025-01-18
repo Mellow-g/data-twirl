@@ -48,6 +48,9 @@ function getLast4Digits(ref: string | number): string {
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = new Map();
+  const processedConsignments = new Set();
+  
+  // First, process all load data
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
@@ -58,39 +61,73 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       loadDataMap.get(last4).push({
         consignNumber,
         variety: load['Variety'] || '',
-        cartonType: load['Ctn Type'] || '',  // Updated from 'Carton Type' to 'Ctn Type'
+        cartonType: load['Ctn Type'] || '',
         cartonsSent: Number(load['Sum of # Ctns']) || 0
       });
     }
   });
 
-  return salesData.map(sale => {
-    const supplierRef = sale['Supplier Ref'];
-    const last4 = getLast4Digits(supplierRef);
-    const loadRecords = loadDataMap.get(last4) || [];
-    
-    const loadInfo = loadRecords.find(record => 
-      record.cartonsSent === Number(sale['Received'])
-    ) || loadRecords[0];
+  // Process sales data and create matched records
+  const matchedRecords = salesData
+    .filter(sale => {
+      const supplierRef = sale['Supplier Ref'];
+      // Filter out entries containing "DESTINATION: Botha & Roodt (Pre)"
+      return !supplierRef?.includes('DESTINATION: Botha & Roodt (Pre)');
+    })
+    .map(sale => {
+      const supplierRef = sale['Supplier Ref'];
+      const last4 = getLast4Digits(supplierRef);
+      const loadRecords = loadDataMap.get(last4) || [];
+      
+      const loadInfo = loadRecords.find(record => 
+        record.cartonsSent === Number(sale['Received'])
+      ) || loadRecords[0];
 
-    const received = Number(sale['Received']) || 0;
-    const soldOnMarket = Number(sale['Sold']) || 0;
+      if (loadInfo) {
+        processedConsignments.add(loadInfo.consignNumber);
+      }
 
-    return {
-      consignNumber: loadInfo ? loadInfo.consignNumber : '',
-      supplierRef: supplierRef || '',
-      status: loadInfo ? 'Matched' : 'Unmatched',
-      variety: loadInfo ? loadInfo.variety : '',
-      cartonType: loadInfo ? loadInfo.cartonType : '',
-      cartonsSent: loadInfo ? loadInfo.cartonsSent : 0,
-      received,
-      deviationSentReceived: loadInfo ? loadInfo.cartonsSent - received : 0,
-      soldOnMarket,
-      deviationReceivedSold: received - soldOnMarket,
-      totalValue: Number(sale['Total Value']) || 0,
-      reconciled: loadInfo ? (loadInfo.cartonsSent === received && received === soldOnMarket) : false
-    };
+      const received = Number(sale['Received']) || 0;
+      const soldOnMarket = Number(sale['Sold']) || 0;
+
+      return {
+        consignNumber: loadInfo ? loadInfo.consignNumber : '',
+        supplierRef: supplierRef || '',
+        status: loadInfo ? 'Matched' : 'Unmatched',
+        variety: loadInfo ? loadInfo.variety : '',
+        cartonType: loadInfo ? loadInfo.cartonType : '',
+        cartonsSent: loadInfo ? loadInfo.cartonsSent : 0,
+        received,
+        deviationSentReceived: loadInfo ? loadInfo.cartonsSent - received : 0,
+        soldOnMarket,
+        deviationReceivedSold: received - soldOnMarket,
+        totalValue: Number(sale['Total Value']) || 0,
+        reconciled: loadInfo ? (loadInfo.cartonsSent === received && received === soldOnMarket) : false
+      };
+    });
+
+  // Add unmatched load records
+  loadData.forEach(load => {
+    const consignNumber = load['Consign']?.toString() || '';
+    if (!processedConsignments.has(consignNumber)) {
+      matchedRecords.push({
+        consignNumber,
+        supplierRef: '',
+        status: 'Unmatched',
+        variety: load['Variety'] || '',
+        cartonType: load['Ctn Type'] || '',
+        cartonsSent: Number(load['Sum of # Ctns']) || 0,
+        received: 0,
+        deviationSentReceived: Number(load['Sum of # Ctns']) || 0,
+        soldOnMarket: 0,
+        deviationReceivedSold: 0,
+        totalValue: 0,
+        reconciled: false
+      });
+    }
   });
+
+  return matchedRecords;
 }
 
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
