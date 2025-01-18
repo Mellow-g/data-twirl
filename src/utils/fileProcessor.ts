@@ -58,7 +58,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       loadDataMap.get(last4).push({
         consignNumber,
         variety: load['Variety'] || '',
-        cartonType: load['Carton Type'] || '',
+        cartonType: load['Ctn Type'] || '',  // Updated from 'Carton Type' to 'Ctn Type'
         cartonsSent: Number(load['Sum of # Ctns']) || 0
       });
     }
