@@ -30,6 +30,7 @@ export async function processFile(file: File): Promise<any[]> {
           raw: true,
           defval: ''
         });
+        console.log('First row of data:', data[0]); // Debug log to see column names
         resolve(data);
       } catch (err) {
         reject(err);
@@ -58,8 +59,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     console.log('Processing load record:', { 
       consignNumber, 
       cartonsSent,
-      rawCtns: load['Sum of # Ctns']
-    }); // Debug log
+      rawData: load // Log the entire record to see all available fields
+    });
     
     const last4 = getLast4Digits(consignNumber);
     if (last4) {
@@ -89,7 +90,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         supplierRef,
         last4,
         matchedLoadRecords: loadRecords
-      }); // Debug log
+      });
       
       const loadInfo = loadRecords.find(record => 
         record.cartonsSent === Number(sale['Received'])
