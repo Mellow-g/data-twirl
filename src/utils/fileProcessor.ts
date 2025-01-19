@@ -61,7 +61,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         consignNumber,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
-        cartonsSent: Number(load['Sum of # Ctns']) || 0
+        cartonsSent: Number(load['#Ctns']) || 0
       });
     }
   });
@@ -113,9 +113,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
-        cartonsSent: Number(load['Sum of # Ctns']) || 0,
+        cartonsSent: Number(load['#Ctns']) || 0,
         received: 0,
-        deviationSentReceived: Number(load['Sum of # Ctns']) || 0,
+        deviationSentReceived: Number(load['#Ctns']) || 0,
         soldOnMarket: 0,
         deviationReceivedSold: 0,
         totalValue: 0,
