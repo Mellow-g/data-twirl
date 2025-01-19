@@ -47,11 +47,20 @@ function getLast4Digits(ref: string | number): string {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
+  console.log('Load Data Sample:', loadData[0]); // Debug log
+  
   const loadDataMap = new Map();
   const processedConsignments = new Set();
   
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
+    const cartonsSent = Number(load['#Ctns']);
+    console.log('Processing load record:', { 
+      consignNumber, 
+      cartonsSent,
+      rawCtns: load['#Ctns']
+    }); // Debug log
+    
     const last4 = getLast4Digits(consignNumber);
     if (last4) {
       if (!loadDataMap.has(last4)) {
@@ -69,13 +78,18 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
       const supplierRef = sale['Supplier Ref']?.toString().trim();
-      // Only filter out entries containing "DESTINATION:"
       return !supplierRef?.includes('DESTINATION:');
     })
     .map(sale => {
       const supplierRef = sale['Supplier Ref'];
       const last4 = getLast4Digits(supplierRef);
       const loadRecords = loadDataMap.get(last4) || [];
+      
+      console.log('Processing sale record:', { 
+        supplierRef,
+        last4,
+        matchedLoadRecords: loadRecords
+      }); // Debug log
       
       const loadInfo = loadRecords.find(record => 
         record.cartonsSent === Number(sale['Received'])
