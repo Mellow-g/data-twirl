@@ -59,7 +59,7 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   const getRowClassName = (record: MatchedRecord) => {
     if (!record.consignNumber && !record.supplierRef) {
-      return 'bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/40';
+      return 'bg-orange-900/30 hover:bg-orange-900/40';
     }
     if (record.status === 'Unmatched') {
       return 'bg-destructive/10 hover:bg-destructive/20';
@@ -116,9 +116,9 @@ export const DataTable = ({ data }: DataTableProps) => {
               <TableHead className="text-primary">Variety</TableHead>
               <TableHead className="text-primary">Carton Type</TableHead>
               <TableHead className="text-right text-primary">Cartons Sent</TableHead>
-              <TableHead className="text-right text-primary">Received</TableHead>
+              <TableHead className="text-right text-primary">Cartons Received</TableHead>
               <TableHead className="text-right text-primary">Deviation Sent/Received</TableHead>
-              <TableHead className="text-right text-primary">Sold on Market</TableHead>
+              <TableHead className="text-right text-primary">Cartons Sold on Market</TableHead>
               <TableHead className="text-right text-primary">Deviation Received/Sold</TableHead>
               <TableHead className="text-right text-primary">Total Value</TableHead>
               <TableHead className="text-center text-primary">Reconciled</TableHead>
