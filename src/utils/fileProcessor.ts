@@ -3,9 +3,9 @@ import { FileData, MatchedRecord, Statistics } from '@/types';
 
 export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {
   if (type === 'currency') {
-    return new Intl.NumberFormat('en-AU', { 
+    return new Intl.NumberFormat('en-ZA', { 
       style: 'currency', 
-      currency: 'AUD' 
+      currency: 'ZAR' 
     }).format(value);
   }
   if (type === 'percent') {

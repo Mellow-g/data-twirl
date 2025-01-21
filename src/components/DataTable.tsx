@@ -34,13 +34,17 @@ export const DataTable = ({ data }: DataTableProps) => {
       return matchesStatus && matchesVariety;
     });
 
-    // Then, sort the data into three categories
+    // Then, sort the data into categories
+    const reconciled: MatchedRecord[] = [];
+    const unreconciled: MatchedRecord[] = [];
     const matched: MatchedRecord[] = [];
     const unmatched: MatchedRecord[] = [];
     const incomplete: MatchedRecord[] = [];
 
     filtered.forEach(record => {
-      if (!record.consignNumber && !record.supplierRef) {
+      if (record.reconciled) {
+        reconciled.push(record);
+      } else if (!record.consignNumber && !record.supplierRef) {
         incomplete.push(record);
       } else if (record.status === 'Matched') {
         matched.push(record);
@@ -50,7 +54,7 @@ export const DataTable = ({ data }: DataTableProps) => {
     });
 
     // Combine all categories in the desired order
-    return [...matched, ...unmatched, ...incomplete];
+    return [...reconciled, ...matched, ...unmatched, ...incomplete];
   }, [data, statusFilter, varietyFilter]);
 
   const handleExport = () => {
