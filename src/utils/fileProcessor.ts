@@ -47,6 +47,14 @@ function getLast4Digits(ref: string | number): string {
   return numbers.slice(-4);
 }
 
+function isValidSupplierRef(ref: string | undefined): boolean {
+  if (!ref) return false;
+  // Check if the reference contains "DESTINATION:" or is not a proper reference number
+  if (ref.includes('DESTINATION:') || ref.includes('(Pre)')) return false;
+  // Ensure there are at least some numbers in the reference
+  return /\d/.test(ref);
+}
+
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   console.log('Load Data Sample:', loadData[0]); // Debug log
   
@@ -59,7 +67,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     console.log('Processing load record:', { 
       consignNumber, 
       cartonsSent,
-      rawData: load // Log the entire record to see all available fields
+      rawData: load
     });
     
     const last4 = getLast4Digits(consignNumber);
@@ -79,7 +87,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
       const supplierRef = sale['Supplier Ref']?.toString().trim();
-      return !supplierRef?.includes('DESTINATION:');
+      return isValidSupplierRef(supplierRef);
     })
     .map(sale => {
       const supplierRef = sale['Supplier Ref'];
