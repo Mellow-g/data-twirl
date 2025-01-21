@@ -26,16 +26,45 @@ export const DataTable = ({ data }: DataTableProps) => {
     return Array.from(uniqueVarieties).filter(Boolean);
   }, [data]);
 
-  const filteredData = useMemo(() => {
-    return data.filter(record => {
+  const filteredAndSortedData = useMemo(() => {
+    // First, apply filters
+    const filtered = data.filter(record => {
       const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       return matchesStatus && matchesVariety;
     });
+
+    // Then, sort the data into three categories
+    const matched: MatchedRecord[] = [];
+    const unmatched: MatchedRecord[] = [];
+    const incomplete: MatchedRecord[] = [];
+
+    filtered.forEach(record => {
+      if (!record.consignNumber && !record.supplierRef) {
+        incomplete.push(record);
+      } else if (record.status === 'Matched') {
+        matched.push(record);
+      } else {
+        unmatched.push(record);
+      }
+    });
+
+    // Combine all categories in the desired order
+    return [...matched, ...unmatched, ...incomplete];
   }, [data, statusFilter, varietyFilter]);
 
   const handleExport = () => {
-    generateExcel(filteredData);
+    generateExcel(filteredAndSortedData);
+  };
+
+  const getRowClassName = (record: MatchedRecord) => {
+    if (!record.consignNumber && !record.supplierRef) {
+      return 'bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/40';
+    }
+    if (record.status === 'Unmatched') {
+      return 'bg-destructive/10 hover:bg-destructive/20';
+    }
+    return 'bg-background hover:bg-card/50';
   };
 
   return (
@@ -96,13 +125,10 @@ export const DataTable = ({ data }: DataTableProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.map((record, index) => (
+            {filteredAndSortedData.map((record, index) => (
               <TableRow
                 key={index}
-                className={`
-                  ${record.status === 'Unmatched' ? 'bg-destructive/10' : 'bg-background'}
-                  hover:bg-card/50
-                `}
+                className={getRowClassName(record)}
               >
                 <TableCell className="text-foreground">{record.consignNumber}</TableCell>
                 <TableCell className="text-foreground">{record.supplierRef}</TableCell>
