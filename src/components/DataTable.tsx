@@ -118,7 +118,7 @@ export const DataTable = ({ data }: DataTableProps) => {
               <TableHead className="text-right text-primary">Cartons Sent</TableHead>
               <TableHead className="text-right text-primary">Cartons Received</TableHead>
               <TableHead className="text-right text-primary">Deviation Sent/Received</TableHead>
-              <TableHead className="text-right text-primary">Cartons Sold on Market</TableHead>
+              <TableHead className="text-right text-primary">Cartons Sold</TableHead>
               <TableHead className="text-right text-primary">Deviation Received/Sold</TableHead>
               <TableHead className="text-right text-primary">Total Value</TableHead>
               <TableHead className="text-center text-primary">Reconciled</TableHead>
