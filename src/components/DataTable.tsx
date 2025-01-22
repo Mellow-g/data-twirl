@@ -113,24 +113,24 @@ export const DataTable = ({ data }: DataTableProps) => {
       <div className="rounded-md border border-primary/20">
         {/* Fixed Header */}
         <div className="sticky top-0 z-50 bg-card border-b border-primary/20">
-          <div className="w-full">
-            <Table>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableHead className="text-primary h-12 bg-card">Consign Number</TableHead>
-                <TableHead className="text-primary h-12 bg-card">Supplier Reference</TableHead>
-                <TableHead className="text-primary h-12 bg-card">Status</TableHead>
-                <TableHead className="text-primary h-12 bg-card">Variety</TableHead>
-                <TableHead className="text-primary h-12 bg-card">Carton Type</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Cartons Sent</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Cartons Received</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Deviation Sent/Received</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Cartons Sold</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Deviation Received/Sold</TableHead>
-                <TableHead className="text-right text-primary h-12 bg-card">Total Value</TableHead>
-                <TableHead className="text-center text-primary h-12 bg-card">Reconciled</TableHead>
+                <TableHead className="w-[150px] text-primary h-12 bg-card">Consign Number</TableHead>
+                <TableHead className="w-[150px] text-primary h-12 bg-card">Supplier Reference</TableHead>
+                <TableHead className="w-[100px] text-primary h-12 bg-card">Status</TableHead>
+                <TableHead className="w-[100px] text-primary h-12 bg-card">Variety</TableHead>
+                <TableHead className="w-[100px] text-primary h-12 bg-card">Carton Type</TableHead>
+                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Sent</TableHead>
+                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Received</TableHead>
+                <TableHead className="w-[150px] text-right text-primary h-12 bg-card">Deviation Sent/Received</TableHead>
+                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Sold</TableHead>
+                <TableHead className="w-[150px] text-right text-primary h-12 bg-card">Deviation Received/Sold</TableHead>
+                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Total Value</TableHead>
+                <TableHead className="w-[100px] text-center text-primary h-12 bg-card">Reconciled</TableHead>
               </TableRow>
-            </Table>
-          </div>
+            </TableHeader>
+          </Table>
         </div>
 
         {/* Scrollable Content */}
@@ -142,9 +142,9 @@ export const DataTable = ({ data }: DataTableProps) => {
                   key={index}
                   className={getRowClassName(record)}
                 >
-                  <TableCell className="text-foreground">{record.consignNumber}</TableCell>
-                  <TableCell className="text-foreground">{record.supplierRef}</TableCell>
-                  <TableCell>
+                  <TableCell className="w-[150px] text-foreground">{record.consignNumber}</TableCell>
+                  <TableCell className="w-[150px] text-foreground">{record.supplierRef}</TableCell>
+                  <TableCell className="w-[100px]">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                         ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
@@ -153,15 +153,15 @@ export const DataTable = ({ data }: DataTableProps) => {
                       {record.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-foreground">{record.variety}</TableCell>
-                  <TableCell className="text-foreground">{record.cartonType}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.received)}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
-                  <TableCell className="text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="w-[100px] text-foreground">{record.variety}</TableCell>
+                  <TableCell className="w-[100px] text-foreground">{record.cartonType}</TableCell>
+                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
+                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.received)}</TableCell>
+                  <TableCell className="w-[150px] text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
+                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
+                  <TableCell className="w-[150px] text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
+                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
+                  <TableCell className="w-[100px] text-center">
                     {record.reconciled ? (
                       <Check className="h-5 w-5 text-green-500 mx-auto" />
                     ) : (
