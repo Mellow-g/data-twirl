@@ -110,60 +110,62 @@ export const DataTable = ({ data }: DataTableProps) => {
         </Button>
       </div>
 
-      <div className="rounded-md border border-primary/20 max-h-[600px] overflow-auto">
-        <Table>
-          <TableHeader className="sticky top-0 z-10">
-            <TableRow className="bg-card hover:bg-card/90">
-              <TableHead className="text-primary">Consign Number</TableHead>
-              <TableHead className="text-primary">Supplier Reference</TableHead>
-              <TableHead className="text-primary">Status</TableHead>
-              <TableHead className="text-primary">Variety</TableHead>
-              <TableHead className="text-primary">Carton Type</TableHead>
-              <TableHead className="text-right text-primary">Cartons Sent</TableHead>
-              <TableHead className="text-right text-primary">Cartons Received</TableHead>
-              <TableHead className="text-right text-primary">Deviation Sent/Received</TableHead>
-              <TableHead className="text-right text-primary">Cartons Sold</TableHead>
-              <TableHead className="text-right text-primary">Deviation Received/Sold</TableHead>
-              <TableHead className="text-right text-primary">Total Value</TableHead>
-              <TableHead className="text-center text-primary">Reconciled</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedData.map((record, index) => (
-              <TableRow
-                key={index}
-                className={getRowClassName(record)}
-              >
-                <TableCell className="text-foreground">{record.consignNumber}</TableCell>
-                <TableCell className="text-foreground">{record.supplierRef}</TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                      ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
-                    }
-                  >
-                    {record.status}
-                  </span>
-                </TableCell>
-                <TableCell className="text-foreground">{record.variety}</TableCell>
-                <TableCell className="text-foreground">{record.cartonType}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.received)}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
-                <TableCell className="text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
-                <TableCell className="text-center">
-                  {record.reconciled ? (
-                    <Check className="h-5 w-5 text-green-500 mx-auto" />
-                  ) : (
-                    <X className="h-5 w-5 text-destructive mx-auto" />
-                  )}
-                </TableCell>
+      <div className="rounded-md border border-primary/20">
+        <div className="max-h-[600px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-card">
+              <TableRow className="hover:bg-card/90 border-b border-primary/20">
+                <TableHead className="text-primary">Consign Number</TableHead>
+                <TableHead className="text-primary">Supplier Reference</TableHead>
+                <TableHead className="text-primary">Status</TableHead>
+                <TableHead className="text-primary">Variety</TableHead>
+                <TableHead className="text-primary">Carton Type</TableHead>
+                <TableHead className="text-right text-primary">Cartons Sent</TableHead>
+                <TableHead className="text-right text-primary">Cartons Received</TableHead>
+                <TableHead className="text-right text-primary">Deviation Sent/Received</TableHead>
+                <TableHead className="text-right text-primary">Cartons Sold</TableHead>
+                <TableHead className="text-right text-primary">Deviation Received/Sold</TableHead>
+                <TableHead className="text-right text-primary">Total Value</TableHead>
+                <TableHead className="text-center text-primary">Reconciled</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedData.map((record, index) => (
+                <TableRow
+                  key={index}
+                  className={getRowClassName(record)}
+                >
+                  <TableCell className="text-foreground">{record.consignNumber}</TableCell>
+                  <TableCell className="text-foreground">{record.supplierRef}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                        ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
+                      }
+                    >
+                      {record.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-foreground">{record.variety}</TableCell>
+                  <TableCell className="text-foreground">{record.cartonType}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.received)}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
+                  <TableCell className="text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
+                  <TableCell className="text-center">
+                    {record.reconciled ? (
+                      <Check className="h-5 w-5 text-green-500 mx-auto" />
+                    ) : (
+                      <X className="h-5 w-5 text-destructive mx-auto" />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
