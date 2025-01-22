@@ -111,24 +111,26 @@ export const DataTable = ({ data }: DataTableProps) => {
       </div>
 
       <div className="rounded-md border border-primary/20">
-        {/* Fixed Header Table */}
-        <div className="bg-card border-b border-primary/20">
-          <Table>
-            <TableRow>
-              <TableHead className="text-primary h-12">Consign Number</TableHead>
-              <TableHead className="text-primary h-12">Supplier Reference</TableHead>
-              <TableHead className="text-primary h-12">Status</TableHead>
-              <TableHead className="text-primary h-12">Variety</TableHead>
-              <TableHead className="text-primary h-12">Carton Type</TableHead>
-              <TableHead className="text-right text-primary h-12">Cartons Sent</TableHead>
-              <TableHead className="text-right text-primary h-12">Cartons Received</TableHead>
-              <TableHead className="text-right text-primary h-12">Deviation Sent/Received</TableHead>
-              <TableHead className="text-right text-primary h-12">Cartons Sold</TableHead>
-              <TableHead className="text-right text-primary h-12">Deviation Received/Sold</TableHead>
-              <TableHead className="text-right text-primary h-12">Total Value</TableHead>
-              <TableHead className="text-center text-primary h-12">Reconciled</TableHead>
-            </TableRow>
-          </Table>
+        {/* Fixed Header */}
+        <div className="sticky top-0 z-50 bg-card border-b border-primary/20">
+          <div className="w-full">
+            <Table>
+              <TableRow>
+                <TableHead className="text-primary h-12 bg-card">Consign Number</TableHead>
+                <TableHead className="text-primary h-12 bg-card">Supplier Reference</TableHead>
+                <TableHead className="text-primary h-12 bg-card">Status</TableHead>
+                <TableHead className="text-primary h-12 bg-card">Variety</TableHead>
+                <TableHead className="text-primary h-12 bg-card">Carton Type</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Cartons Sent</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Cartons Received</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Deviation Sent/Received</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Cartons Sold</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Deviation Received/Sold</TableHead>
+                <TableHead className="text-right text-primary h-12 bg-card">Total Value</TableHead>
+                <TableHead className="text-center text-primary h-12 bg-card">Reconciled</TableHead>
+              </TableRow>
+            </Table>
+          </div>
         </div>
 
         {/* Scrollable Content */}
