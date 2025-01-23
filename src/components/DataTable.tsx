@@ -64,7 +64,7 @@ export const DataTable = ({ data }: DataTableProps) => {
     if (record.status === 'Unmatched') {
       return 'bg-destructive/10 hover:bg-destructive/20';
     }
-    return 'bg-background hover:bg-card/50';
+    return 'hover:bg-card/50';
   };
 
   // Define column classes with exact pixel widths and consistent alignment
@@ -119,29 +119,29 @@ export const DataTable = ({ data }: DataTableProps) => {
         </Button>
       </div>
 
-      <div className="rounded-md border border-primary/20">
+      <div className="rounded-md border border-primary/20 max-h-[70vh] overflow-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-50 bg-card border-b border-primary/20">
-            <TableRow>
-              <TableHead className={columnClasses.consign}>Consign Number</TableHead>
-              <TableHead className={columnClasses.supplier}>Supplier Reference</TableHead>
-              <TableHead className={columnClasses.status}>Status</TableHead>
-              <TableHead className={columnClasses.variety}>Variety</TableHead>
-              <TableHead className={columnClasses.cartonType}>Carton Type</TableHead>
-              <TableHead className={columnClasses.numbers}>Cartons Sent</TableHead>
-              <TableHead className={columnClasses.numbers}>Cartons Received</TableHead>
-              <TableHead className={columnClasses.deviation}>Deviation Sent/Received</TableHead>
-              <TableHead className={columnClasses.numbers}>Cartons Sold</TableHead>
-              <TableHead className={columnClasses.deviation}>Deviation Received/Sold</TableHead>
-              <TableHead className={columnClasses.value}>Total Value</TableHead>
-              <TableHead className={columnClasses.reconciled}>Reconciled</TableHead>
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="bg-[#1A1F2C] border-b border-primary/20">
+              <TableHead className={`${columnClasses.consign} text-primary font-semibold`}>Consign Number</TableHead>
+              <TableHead className={`${columnClasses.supplier} text-primary font-semibold`}>Supplier Reference</TableHead>
+              <TableHead className={`${columnClasses.status} text-primary font-semibold`}>Status</TableHead>
+              <TableHead className={`${columnClasses.variety} text-primary font-semibold`}>Variety</TableHead>
+              <TableHead className={`${columnClasses.cartonType} text-primary font-semibold`}>Carton Type</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sent</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Received</TableHead>
+              <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Sent/Received</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sold</TableHead>
+              <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Received/Sold</TableHead>
+              <TableHead className={`${columnClasses.value} text-primary font-semibold`}>Total Value</TableHead>
+              <TableHead className={`${columnClasses.reconciled} text-primary font-semibold`}>Reconciled</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSortedData.map((record, index) => (
               <TableRow
                 key={index}
-                className={getRowClassName(record)}
+                className={`${getRowClassName(record)} transition-colors`}
               >
                 <TableCell className={columnClasses.consign}>{record.consignNumber}</TableCell>
                 <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
