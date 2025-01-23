@@ -71,6 +71,18 @@ export const DataTable = ({ data }: DataTableProps) => {
     return 'bg-background hover:bg-card/50';
   };
 
+  // Common width and alignment classes for consistent layout
+  const columnClasses = {
+    consign: "w-[150px] text-left",
+    supplier: "w-[150px] text-left",
+    status: "w-[100px] text-left",
+    variety: "w-[100px] text-left",
+    cartonType: "w-[100px] text-left",
+    numbers: "w-[120px] text-right",
+    deviation: "w-[150px] text-right",
+    reconciled: "w-[100px] text-center"
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between bg-card p-4 rounded-lg">
@@ -116,18 +128,18 @@ export const DataTable = ({ data }: DataTableProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[150px] text-primary h-12 bg-card">Consign Number</TableHead>
-                <TableHead className="w-[150px] text-primary h-12 bg-card">Supplier Reference</TableHead>
-                <TableHead className="w-[100px] text-primary h-12 bg-card">Status</TableHead>
-                <TableHead className="w-[100px] text-primary h-12 bg-card">Variety</TableHead>
-                <TableHead className="w-[100px] text-primary h-12 bg-card">Carton Type</TableHead>
-                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Sent</TableHead>
-                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Received</TableHead>
-                <TableHead className="w-[150px] text-right text-primary h-12 bg-card">Deviation Sent/Received</TableHead>
-                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Cartons Sold</TableHead>
-                <TableHead className="w-[150px] text-right text-primary h-12 bg-card">Deviation Received/Sold</TableHead>
-                <TableHead className="w-[120px] text-right text-primary h-12 bg-card">Total Value</TableHead>
-                <TableHead className="w-[100px] text-center text-primary h-12 bg-card">Reconciled</TableHead>
+                <TableHead className={`${columnClasses.consign} text-primary h-12 bg-card`}>Consign Number</TableHead>
+                <TableHead className={`${columnClasses.supplier} text-primary h-12 bg-card`}>Supplier Reference</TableHead>
+                <TableHead className={`${columnClasses.status} text-primary h-12 bg-card`}>Status</TableHead>
+                <TableHead className={`${columnClasses.variety} text-primary h-12 bg-card`}>Variety</TableHead>
+                <TableHead className={`${columnClasses.cartonType} text-primary h-12 bg-card`}>Carton Type</TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary h-12 bg-card`}>Cartons Sent</TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary h-12 bg-card`}>Cartons Received</TableHead>
+                <TableHead className={`${columnClasses.deviation} text-primary h-12 bg-card`}>Deviation Sent/Received</TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary h-12 bg-card`}>Cartons Sold</TableHead>
+                <TableHead className={`${columnClasses.deviation} text-primary h-12 bg-card`}>Deviation Received/Sold</TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary h-12 bg-card`}>Total Value</TableHead>
+                <TableHead className={`${columnClasses.reconciled} text-primary h-12 bg-card`}>Reconciled</TableHead>
               </TableRow>
             </TableHeader>
           </Table>
@@ -142,9 +154,9 @@ export const DataTable = ({ data }: DataTableProps) => {
                   key={index}
                   className={getRowClassName(record)}
                 >
-                  <TableCell className="w-[150px] text-foreground">{record.consignNumber}</TableCell>
-                  <TableCell className="w-[150px] text-foreground">{record.supplierRef}</TableCell>
-                  <TableCell className="w-[100px]">
+                  <TableCell className={`${columnClasses.consign} text-foreground`}>{record.consignNumber}</TableCell>
+                  <TableCell className={`${columnClasses.supplier} text-foreground`}>{record.supplierRef}</TableCell>
+                  <TableCell className={columnClasses.status}>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                         ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
@@ -153,15 +165,15 @@ export const DataTable = ({ data }: DataTableProps) => {
                       {record.status}
                     </span>
                   </TableCell>
-                  <TableCell className="w-[100px] text-foreground">{record.variety}</TableCell>
-                  <TableCell className="w-[100px] text-foreground">{record.cartonType}</TableCell>
-                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.cartonsSent)}</TableCell>
-                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.received)}</TableCell>
-                  <TableCell className="w-[150px] text-right text-foreground">{formatNumber(record.deviationSentReceived)}</TableCell>
-                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.soldOnMarket)}</TableCell>
-                  <TableCell className="w-[150px] text-right text-foreground">{formatNumber(record.deviationReceivedSold)}</TableCell>
-                  <TableCell className="w-[120px] text-right text-foreground">{formatNumber(record.totalValue, 'currency')}</TableCell>
-                  <TableCell className="w-[100px] text-center">
+                  <TableCell className={`${columnClasses.variety} text-foreground`}>{record.variety}</TableCell>
+                  <TableCell className={`${columnClasses.cartonType} text-foreground`}>{record.cartonType}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-foreground`}>{formatNumber(record.cartonsSent)}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-foreground`}>{formatNumber(record.received)}</TableCell>
+                  <TableCell className={`${columnClasses.deviation} text-foreground`}>{formatNumber(record.deviationSentReceived)}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-foreground`}>{formatNumber(record.soldOnMarket)}</TableCell>
+                  <TableCell className={`${columnClasses.deviation} text-foreground`}>{formatNumber(record.deviationReceivedSold)}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-foreground`}>{formatNumber(record.totalValue, 'currency')}</TableCell>
+                  <TableCell className={`${columnClasses.reconciled}`}>
                     {record.reconciled ? (
                       <Check className="h-5 w-5 text-green-500 mx-auto" />
                     ) : (
