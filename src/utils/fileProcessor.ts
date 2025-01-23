@@ -30,7 +30,6 @@ export async function processFile(file: File): Promise<any[]> {
           raw: true,
           defval: ''
         });
-        console.log('First row of data:', data[0]); // Debug log to see column names
         resolve(data);
       } catch (err) {
         reject(err);
@@ -49,26 +48,17 @@ function getLast4Digits(ref: string | number): string {
 
 function isValidSupplierRef(ref: string | undefined): boolean {
   if (!ref) return false;
-  // Check if the reference contains "DESTINATION:" or is not a proper reference number
   if (ref.includes('DESTINATION:') || ref.includes('(Pre)')) return false;
-  // Ensure there are at least some numbers in the reference
   return /\d/.test(ref);
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  console.log('Load Data Sample:', loadData[0]); // Debug log
-  
   const loadDataMap = new Map();
   const processedConsignments = new Set();
   
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const cartonsSent = Number(load['Sum of # Ctns']);
-    console.log('Processing load record:', { 
-      consignNumber, 
-      cartonsSent,
-      rawData: load
-    });
     
     const last4 = getLast4Digits(consignNumber);
     if (last4) {
@@ -93,12 +83,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const supplierRef = sale['Supplier Ref'];
       const last4 = getLast4Digits(supplierRef);
       const loadRecords = loadDataMap.get(last4) || [];
-      
-      console.log('Processing sale record:', { 
-        supplierRef,
-        last4,
-        matchedLoadRecords: loadRecords
-      });
       
       const loadInfo = loadRecords.find(record => 
         record.cartonsSent === Number(sale['Received'])
