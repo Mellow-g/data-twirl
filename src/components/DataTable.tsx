@@ -8,20 +8,18 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MatchedRecord, Statistics } from "@/types";
+import { MatchedRecord } from "@/types";
 import { formatNumber, generateExcel } from "@/utils/fileProcessor";
 import { useState, useMemo } from "react";
 import { Download, Check, X } from "lucide-react";
 
 interface DataTableProps {
   data: MatchedRecord[];
-  onFilteredDataChange?: (filteredData: MatchedRecord[]) => void;
 }
 
-export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
+export const DataTable = ({ data }: DataTableProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [varietyFilter, setVarietyFilter] = useState<string>("all");
-  const [reconciledFilter, setReconciledFilter] = useState<string>("all");
 
   const varieties = useMemo(() => {
     const uniqueVarieties = new Set(data.map(record => record.variety));
@@ -30,12 +28,9 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
 
   const filteredAndSortedData = useMemo(() => {
     const filtered = data.filter(record => {
-      const matchesStatus = statusFilter === "all" || 
-        String(record.status).toLowerCase() === statusFilter;
+      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
-      const matchesReconciled = reconciledFilter === "all" || 
-        (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
-      return matchesStatus && matchesVariety && matchesReconciled;
+      return matchesStatus && matchesVariety;
     });
 
     const reconciled: MatchedRecord[] = [];
@@ -56,12 +51,7 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
     });
 
     return [...reconciled, ...matched, ...unmatched, ...incomplete];
-  }, [data, statusFilter, varietyFilter, reconciledFilter]);
-
-  // Update parent component with filtered data for statistics
-  useMemo(() => {
-    onFilteredDataChange?.(filteredAndSortedData);
-  }, [filteredAndSortedData, onFilteredDataChange]);
+  }, [data, statusFilter, varietyFilter]);
 
   const handleExport = () => {
     generateExcel(filteredAndSortedData);
@@ -116,17 +106,6 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
                   {variety}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={reconciledFilter} onValueChange={setReconciledFilter}>
-            <SelectTrigger className="w-[180px] bg-background text-foreground">
-              <SelectValue placeholder="Filter by reconciliation" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Records</SelectItem>
-              <SelectItem value="reconciled">Reconciled</SelectItem>
-              <SelectItem value="not-reconciled">Not Reconciled</SelectItem>
             </SelectContent>
           </Select>
         </div>

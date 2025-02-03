@@ -13,7 +13,7 @@ const Index = () => {
   const [salesFile, setSalesFile] = useState<File>();
   const [isProcessing, setIsProcessing] = useState(false);
   const [matchedData, setMatchedData] = useState<MatchedRecord[]>();
-  const [filteredStats, setFilteredStats] = useState<Statistics>();
+  const [statistics, setStatistics] = useState<Statistics>();
   const { toast } = useToast();
 
   const handleFileSelect = (file: File, type: FileType) => {
@@ -43,7 +43,7 @@ const Index = () => {
       const stats = calculateStatistics(matched);
       
       setMatchedData(matched);
-      setFilteredStats(stats);
+      setStatistics(stats);
       
       toast({
         title: "Analysis complete",
@@ -58,11 +58,6 @@ const Index = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleFilteredDataChange = (filteredData: MatchedRecord[]) => {
-    const filteredStats = calculateStatistics(filteredData);
-    setFilteredStats(filteredStats);
   };
 
   return (
@@ -110,17 +105,14 @@ const Index = () => {
 
         {/* Results Section */}
         <div className="space-y-8">
-          {filteredStats && (
+          {statistics && (
             <div className="transform hover:scale-[1.01] transition-transform">
-              <StatsCard stats={filteredStats} />
+              <StatsCard stats={statistics} />
             </div>
           )}
           {matchedData && (
             <div className="bg-card rounded-lg shadow-lg p-6">
-              <DataTable 
-                data={matchedData} 
-                onFilteredDataChange={handleFilteredDataChange}
-              />
+              <DataTable data={matchedData} />
             </div>
           )}
         </div>
