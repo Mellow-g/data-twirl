@@ -30,7 +30,8 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
 
   const filteredAndSortedData = useMemo(() => {
     const filtered = data.filter(record => {
-      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
+      const matchesStatus = statusFilter === "all" || 
+        String(record.status).toLowerCase() === statusFilter;
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       const matchesReconciled = reconciledFilter === "all" || 
         (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
