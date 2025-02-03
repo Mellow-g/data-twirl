@@ -133,22 +133,22 @@ export const DataTable = ({ data }: DataTableProps) => {
         </Button>
       </div>
 
-      <div className="rounded-md border border-primary/20 max-h-[70vh] overflow-auto">
+      <div className="rounded-md border border-primary/20 max-h-[70vh] overflow-auto relative">
         <Table>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-[#1A1F2C] border-b border-primary/20">
-              <TableHead className={`${columnClasses.consign} text-primary font-semibold`}>Consign Number</TableHead>
-              <TableHead className={`${columnClasses.supplier} text-primary font-semibold`}>Supplier Reference</TableHead>
-              <TableHead className={`${columnClasses.status} text-primary font-semibold`}>Status</TableHead>
-              <TableHead className={`${columnClasses.variety} text-primary font-semibold`}>Variety</TableHead>
-              <TableHead className={`${columnClasses.cartonType} text-primary font-semibold`}>Carton Type</TableHead>
-              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sent</TableHead>
-              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Received</TableHead>
-              <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Sent/Received</TableHead>
-              <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sold</TableHead>
-              <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Received/Sold</TableHead>
-              <TableHead className={`${columnClasses.value} text-primary font-semibold`}>Total Value</TableHead>
-              <TableHead className={`${columnClasses.reconciled} text-primary font-semibold`}>Reconciled</TableHead>
+              <TableHead className={`${columnClasses.consign} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Consign Number</TableHead>
+              <TableHead className={`${columnClasses.supplier} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Supplier Reference</TableHead>
+              <TableHead className={`${columnClasses.status} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Status</TableHead>
+              <TableHead className={`${columnClasses.variety} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Variety</TableHead>
+              <TableHead className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Carton Type</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sent</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Received</TableHead>
+              <TableHead className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Sent/Received</TableHead>
+              <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sold</TableHead>
+              <TableHead className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Received/Sold</TableHead>
+              <TableHead className={`${columnClasses.value} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Total Value</TableHead>
+              <TableHead className={`${columnClasses.reconciled} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Reconciled</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
