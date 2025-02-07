@@ -72,15 +72,15 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   // Updated column classes with optimized widths and consistent alignment
   const columnClasses = {
-    consign: "w-[160px] px-3",
-    supplier: "w-[180px] px-3",
-    status: "w-[120px] px-3",
-    variety: "w-[100px] px-3",
-    cartonType: "w-[120px] px-3",
-    numbers: "w-[120px] px-3 text-right",
-    deviation: "w-[160px] px-3 text-right",
-    value: "w-[140px] px-3 text-right",
-    reconciled: "w-[120px] px-3 text-center"
+    consign: "w-[140px] px-2",
+    supplier: "w-[140px] px-2",
+    status: "w-[100px] px-2",
+    variety: "w-[90px] px-2",
+    cartonType: "w-[110px] px-2",
+    numbers: "w-[100px] px-2 text-right",
+    deviation: "w-[120px] px-2 text-right",
+    value: "w-[120px] px-2 text-right",
+    reconciled: "w-[100px] px-2 text-center"
   };
 
   return (
@@ -193,7 +193,7 @@ export const DataTable = ({ data }: DataTableProps) => {
                   <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
                   <TableCell className={columnClasses.status}>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                      className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium
                         ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
                       }
                     >
