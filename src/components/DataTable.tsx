@@ -70,17 +70,17 @@ export const DataTable = ({ data }: DataTableProps) => {
     return 'hover:bg-card/50';
   };
 
-  // Define column classes with exact pixel widths and consistent alignment
+  // Updated column classes with optimized widths and consistent alignment
   const columnClasses = {
-    consign: "w-[140px] px-4",
-    supplier: "w-[160px] px-4",
-    status: "w-[100px] px-4",
-    variety: "w-[80px] px-4",
-    cartonType: "w-[100px] px-4",
-    numbers: "w-[100px] px-4 text-right",
-    deviation: "w-[140px] px-4 text-right",
-    value: "w-[120px] px-4 text-right",
-    reconciled: "w-[100px] px-4 text-center"
+    consign: "w-[160px] px-3",
+    supplier: "w-[180px] px-3",
+    status: "w-[120px] px-3",
+    variety: "w-[100px] px-3",
+    cartonType: "w-[120px] px-3",
+    numbers: "w-[120px] px-3 text-right",
+    deviation: "w-[160px] px-3 text-right",
+    value: "w-[140px] px-3 text-right",
+    reconciled: "w-[120px] px-3 text-center"
   };
 
   return (
@@ -136,38 +136,62 @@ export const DataTable = ({ data }: DataTableProps) => {
       <div className="rounded-md border border-primary/20">
         {/* Fixed header container */}
         <div className="bg-[#1A1F2C] border-b border-primary/20">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className={`${columnClasses.consign} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Consign Number</th>
-                <th className={`${columnClasses.supplier} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Supplier Reference</th>
-                <th className={`${columnClasses.status} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Status</th>
-                <th className={`${columnClasses.variety} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Variety</th>
-                <th className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Carton Type</th>
-                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sent</th>
-                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Received</th>
-                <th className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Sent/Received</th>
-                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sold</th>
-                <th className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Received/Sold</th>
-                <th className={`${columnClasses.value} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Total Value</th>
-                <th className={`${columnClasses.reconciled} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Reconciled</th>
-              </tr>
-            </thead>
-          </table>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={`${columnClasses.consign} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Consign Number
+                </TableHead>
+                <TableHead className={`${columnClasses.supplier} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Supplier Reference
+                </TableHead>
+                <TableHead className={`${columnClasses.status} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Status
+                </TableHead>
+                <TableHead className={`${columnClasses.variety} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Variety
+                </TableHead>
+                <TableHead className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Carton Type
+                </TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Cartons Sent
+                </TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Cartons Received
+                </TableHead>
+                <TableHead className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Deviation Sent/Received
+                </TableHead>
+                <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Cartons Sold
+                </TableHead>
+                <TableHead className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Deviation Received/Sold
+                </TableHead>
+                <TableHead className={`${columnClasses.value} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Total Value
+                </TableHead>
+                <TableHead className={`${columnClasses.reconciled} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Reconciled
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+          </Table>
         </div>
 
         {/* Scrollable body container */}
         <div className="max-h-[calc(70vh-4rem)] overflow-auto">
-          <table className="w-full">
-            <tbody>
+          <Table>
+            <TableBody>
               {filteredAndSortedData.map((record, index) => (
-                <tr
+                <TableRow
                   key={index}
                   className={`${getRowClassName(record)} transition-colors`}
                 >
-                  <td className={columnClasses.consign}>{record.consignNumber}</td>
-                  <td className={columnClasses.supplier}>{record.supplierRef}</td>
-                  <td className={columnClasses.status}>
+                  <TableCell className={columnClasses.consign}>{record.consignNumber}</TableCell>
+                  <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
+                  <TableCell className={columnClasses.status}>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                         ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
@@ -175,26 +199,26 @@ export const DataTable = ({ data }: DataTableProps) => {
                     >
                       {record.status}
                     </span>
-                  </td>
-                  <td className={columnClasses.variety}>{record.variety}</td>
-                  <td className={columnClasses.cartonType}>{record.cartonType}</td>
-                  <td className={columnClasses.numbers}>{formatNumber(record.cartonsSent)}</td>
-                  <td className={columnClasses.numbers}>{formatNumber(record.received)}</td>
-                  <td className={columnClasses.deviation}>{formatNumber(record.deviationSentReceived)}</td>
-                  <td className={columnClasses.numbers}>{formatNumber(record.soldOnMarket)}</td>
-                  <td className={columnClasses.deviation}>{formatNumber(record.deviationReceivedSold)}</td>
-                  <td className={columnClasses.value}>{formatNumber(record.totalValue, 'currency')}</td>
-                  <td className={columnClasses.reconciled}>
+                  </TableCell>
+                  <TableCell className={columnClasses.variety}>{record.variety}</TableCell>
+                  <TableCell className={columnClasses.cartonType}>{record.cartonType}</TableCell>
+                  <TableCell className={columnClasses.numbers}>{formatNumber(record.cartonsSent)}</TableCell>
+                  <TableCell className={columnClasses.numbers}>{formatNumber(record.received)}</TableCell>
+                  <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationSentReceived)}</TableCell>
+                  <TableCell className={columnClasses.numbers}>{formatNumber(record.soldOnMarket)}</TableCell>
+                  <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationReceivedSold)}</TableCell>
+                  <TableCell className={columnClasses.value}>{formatNumber(record.totalValue, 'currency')}</TableCell>
+                  <TableCell className={columnClasses.reconciled}>
                     {record.reconciled ? (
                       <Check className="h-5 w-5 text-green-500 mx-auto" />
                     ) : (
                       <X className="h-5 w-5 text-destructive mx-auto" />
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
