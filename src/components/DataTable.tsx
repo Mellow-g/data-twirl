@@ -134,69 +134,67 @@ export const DataTable = ({ data }: DataTableProps) => {
       </div>
 
       <div className="rounded-md border border-primary/20">
-        {/* Table wrapper with fixed height and overflow */}
-        <div className="h-[70vh] overflow-hidden flex flex-col">
-          {/* Sticky header container */}
-          <div className="bg-[#1A1F2C] border-b border-primary/20">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className={`${columnClasses.consign} text-primary font-semibold`}>Consign Number</TableHead>
-                  <TableHead className={`${columnClasses.supplier} text-primary font-semibold`}>Supplier Reference</TableHead>
-                  <TableHead className={`${columnClasses.status} text-primary font-semibold`}>Status</TableHead>
-                  <TableHead className={`${columnClasses.variety} text-primary font-semibold`}>Variety</TableHead>
-                  <TableHead className={`${columnClasses.cartonType} text-primary font-semibold`}>Carton Type</TableHead>
-                  <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sent</TableHead>
-                  <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Received</TableHead>
-                  <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Sent/Received</TableHead>
-                  <TableHead className={`${columnClasses.numbers} text-primary font-semibold`}>Cartons Sold</TableHead>
-                  <TableHead className={`${columnClasses.deviation} text-primary font-semibold`}>Deviation Received/Sold</TableHead>
-                  <TableHead className={`${columnClasses.value} text-primary font-semibold`}>Total Value</TableHead>
-                  <TableHead className={`${columnClasses.reconciled} text-primary font-semibold`}>Reconciled</TableHead>
-                </TableRow>
-              </TableHeader>
-            </Table>
-          </div>
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-auto">
-            <Table>
-              <TableBody>
-                {filteredAndSortedData.map((record, index) => (
-                  <TableRow
-                    key={index}
-                    className={`${getRowClassName(record)} transition-colors`}
-                  >
-                    <TableCell className={columnClasses.consign}>{record.consignNumber}</TableCell>
-                    <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
-                    <TableCell className={columnClasses.status}>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                          ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
-                        }
-                      >
-                        {record.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className={columnClasses.variety}>{record.variety}</TableCell>
-                    <TableCell className={columnClasses.cartonType}>{record.cartonType}</TableCell>
-                    <TableCell className={columnClasses.numbers}>{formatNumber(record.cartonsSent)}</TableCell>
-                    <TableCell className={columnClasses.numbers}>{formatNumber(record.received)}</TableCell>
-                    <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationSentReceived)}</TableCell>
-                    <TableCell className={columnClasses.numbers}>{formatNumber(record.soldOnMarket)}</TableCell>
-                    <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationReceivedSold)}</TableCell>
-                    <TableCell className={columnClasses.value}>{formatNumber(record.totalValue, 'currency')}</TableCell>
-                    <TableCell className={columnClasses.reconciled}>
-                      {record.reconciled ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : (
-                        <X className="h-5 w-5 text-destructive mx-auto" />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        {/* Fixed header container */}
+        <div className="bg-[#1A1F2C] border-b border-primary/20">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className={`${columnClasses.consign} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Consign Number</th>
+                <th className={`${columnClasses.supplier} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Supplier Reference</th>
+                <th className={`${columnClasses.status} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Status</th>
+                <th className={`${columnClasses.variety} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Variety</th>
+                <th className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Carton Type</th>
+                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sent</th>
+                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Received</th>
+                <th className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Sent/Received</th>
+                <th className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Cartons Sold</th>
+                <th className={`${columnClasses.deviation} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Deviation Received/Sold</th>
+                <th className={`${columnClasses.value} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Total Value</th>
+                <th className={`${columnClasses.reconciled} text-primary font-semibold sticky top-0 bg-[#1A1F2C]`}>Reconciled</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        {/* Scrollable body container */}
+        <div className="max-h-[calc(70vh-4rem)] overflow-auto">
+          <table className="w-full">
+            <tbody>
+              {filteredAndSortedData.map((record, index) => (
+                <tr
+                  key={index}
+                  className={`${getRowClassName(record)} transition-colors`}
+                >
+                  <td className={columnClasses.consign}>{record.consignNumber}</td>
+                  <td className={columnClasses.supplier}>{record.supplierRef}</td>
+                  <td className={columnClasses.status}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                        ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
+                      }
+                    >
+                      {record.status}
+                    </span>
+                  </td>
+                  <td className={columnClasses.variety}>{record.variety}</td>
+                  <td className={columnClasses.cartonType}>{record.cartonType}</td>
+                  <td className={columnClasses.numbers}>{formatNumber(record.cartonsSent)}</td>
+                  <td className={columnClasses.numbers}>{formatNumber(record.received)}</td>
+                  <td className={columnClasses.deviation}>{formatNumber(record.deviationSentReceived)}</td>
+                  <td className={columnClasses.numbers}>{formatNumber(record.soldOnMarket)}</td>
+                  <td className={columnClasses.deviation}>{formatNumber(record.deviationReceivedSold)}</td>
+                  <td className={columnClasses.value}>{formatNumber(record.totalValue, 'currency')}</td>
+                  <td className={columnClasses.reconciled}>
+                    {record.reconciled ? (
+                      <Check className="h-5 w-5 text-green-500 mx-auto" />
+                    ) : (
+                      <X className="h-5 w-5 text-destructive mx-auto" />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
