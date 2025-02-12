@@ -70,26 +70,25 @@ export const DataTable = ({ data }: DataTableProps) => {
     return 'hover:bg-card/50';
   };
 
-  // Updated column classes with optimized widths and consistent alignment
   const columnClasses = {
-    consign: "w-[140px] px-2",
-    supplier: "w-[140px] px-2",
-    status: "w-[100px] px-2",
-    variety: "w-[90px] px-2",
-    cartonType: "w-[110px] px-2",
-    numbers: "w-[100px] px-2 text-right",
-    deviation: "w-[120px] px-2 text-right",
-    value: "w-[120px] px-2 text-right",
-    reconciled: "w-[100px] px-2 text-center"
+    consign: "w-[180px] px-4",
+    supplier: "w-[200px] px-4",
+    status: "w-[110px] px-4",
+    variety: "w-[100px] px-4",
+    cartonType: "w-[130px] px-4",
+    numbers: "w-[110px] px-4 text-right",
+    deviation: "w-[140px] px-4 text-right",
+    value: "w-[140px] px-4 text-right",
+    reconciled: "w-[110px] px-4 text-center"
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-4 items-center justify-between bg-card p-4 rounded-lg">
+      <div className="flex flex-wrap gap-4 items-center justify-between bg-[#1A1F2C] p-4 rounded-lg border border-primary/20">
         <div className="flex flex-wrap gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] bg-background text-foreground">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="w-[180px] bg-transparent border-primary/20 text-primary">
+              <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
@@ -99,8 +98,8 @@ export const DataTable = ({ data }: DataTableProps) => {
           </Select>
 
           <Select value={varietyFilter} onValueChange={setVarietyFilter}>
-            <SelectTrigger className="w-[180px] bg-background text-foreground">
-              <SelectValue placeholder="Filter by variety" />
+            <SelectTrigger className="w-[180px] bg-transparent border-primary/20 text-primary">
+              <SelectValue placeholder="All Varieties" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Varieties</SelectItem>
@@ -113,8 +112,8 @@ export const DataTable = ({ data }: DataTableProps) => {
           </Select>
 
           <Select value={reconciledFilter} onValueChange={setReconciledFilter}>
-            <SelectTrigger className="w-[180px] bg-background text-foreground">
-              <SelectValue placeholder="Filter by reconciliation" />
+            <SelectTrigger className="w-[180px] bg-transparent border-primary/20 text-primary">
+              <SelectValue placeholder="All Records" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Records</SelectItem>
@@ -126,19 +125,18 @@ export const DataTable = ({ data }: DataTableProps) => {
 
         <Button 
           onClick={handleExport}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
+          className="bg-primary hover:bg-primary/90 text-black font-semibold"
         >
           <Download className="mr-2 h-4 w-4" />
           Export to Excel
         </Button>
       </div>
 
-      <div className="rounded-md border border-primary/20">
-        {/* Fixed header container */}
-        <div className="bg-[#1A1F2C] border-b border-primary/20">
+      <div className="rounded-md border border-primary/20 bg-[#1A1F2C]">
+        <div className="border-b border-primary/20">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead className={`${columnClasses.consign} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
                   Consign Number
                 </TableHead>
@@ -180,34 +178,33 @@ export const DataTable = ({ data }: DataTableProps) => {
           </Table>
         </div>
 
-        {/* Scrollable body container */}
         <div className="max-h-[calc(70vh-4rem)] overflow-auto">
           <Table>
             <TableBody>
               {filteredAndSortedData.map((record, index) => (
                 <TableRow
                   key={index}
-                  className={`${getRowClassName(record)} transition-colors`}
+                  className={`${getRowClassName(record)} transition-colors border-b border-primary/10`}
                 >
-                  <TableCell className={columnClasses.consign}>{record.consignNumber}</TableCell>
-                  <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
+                  <TableCell className={`${columnClasses.consign} text-primary`}>{record.consignNumber}</TableCell>
+                  <TableCell className={`${columnClasses.supplier} text-primary`}>{record.supplierRef}</TableCell>
                   <TableCell className={columnClasses.status}>
                     <span
-                      className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
                         ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
                       }
                     >
                       {record.status}
                     </span>
                   </TableCell>
-                  <TableCell className={columnClasses.variety}>{record.variety}</TableCell>
-                  <TableCell className={columnClasses.cartonType}>{record.cartonType}</TableCell>
-                  <TableCell className={columnClasses.numbers}>{formatNumber(record.cartonsSent)}</TableCell>
-                  <TableCell className={columnClasses.numbers}>{formatNumber(record.received)}</TableCell>
-                  <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationSentReceived)}</TableCell>
-                  <TableCell className={columnClasses.numbers}>{formatNumber(record.soldOnMarket)}</TableCell>
-                  <TableCell className={columnClasses.deviation}>{formatNumber(record.deviationReceivedSold)}</TableCell>
-                  <TableCell className={columnClasses.value}>{formatNumber(record.totalValue, 'currency')}</TableCell>
+                  <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
+                  <TableCell className={`${columnClasses.cartonType} text-primary`}>{record.cartonType}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.cartonsSent)}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.received)}</TableCell>
+                  <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>
+                  <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.soldOnMarket)}</TableCell>
+                  <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationReceivedSold)}</TableCell>
+                  <TableCell className={`${columnClasses.value} text-primary`}>{formatNumber(record.totalValue, 'currency')}</TableCell>
                   <TableCell className={columnClasses.reconciled}>
                     {record.reconciled ? (
                       <Check className="h-5 w-5 text-green-500 mx-auto" />
