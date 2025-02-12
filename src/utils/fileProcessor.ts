@@ -74,7 +74,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
-    const palletId = load['Pallet ID'] || '';
     const cartonsSent = Number(load['Sum of # Ctns']) || 0;
 
     let matchedSale = null;
@@ -97,7 +96,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       status: matchedSale ? 'Matched' : 'Unmatched',
       variety: load['Variety'] || '',
       cartonType: load['Ctn Type'] || '',
-      palletId,
       cartonsSent,
       received,
       deviationSentReceived: cartonsSent - received,
@@ -128,7 +126,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
           status: 'Unmatched',
           variety: '',
           cartonType: '',
-          palletId: '',
           cartonsSent: 0,
           received,
           deviationSentReceived: -received,
@@ -165,7 +162,6 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
-    'Pallet ID': item.palletId,
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
     'Deviation Sent/Received': item.deviationSentReceived,
