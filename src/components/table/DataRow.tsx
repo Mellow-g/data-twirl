@@ -29,7 +29,6 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       </TableCell>
       <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
       <TableCell className={`${columnClasses.cartonType} text-primary`}>{record.cartonType}</TableCell>
-      <TableCell className={`${columnClasses.palletId} text-primary`}>{record.palletId}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.cartonsSent)}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.received)}</TableCell>
       <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>

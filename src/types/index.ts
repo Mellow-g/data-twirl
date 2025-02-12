@@ -11,7 +11,6 @@ export interface MatchedRecord {
   status: 'Matched' | 'Unmatched';
   variety: string;
   cartonType: string;
-  palletId: string; // Added field for pallet ID
   cartonsSent: number;
   received: number;
   deviationSentReceived: number;

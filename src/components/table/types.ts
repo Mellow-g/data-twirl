@@ -5,7 +5,6 @@ export interface ColumnClasses {
   status: string;
   variety: string;
   cartonType: string;
-  palletId: string;
   numbers: string;
   deviation: string;
   value: string;

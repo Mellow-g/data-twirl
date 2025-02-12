@@ -71,7 +71,6 @@ export const DataTable = ({ data }: DataTableProps) => {
     status: "w-[110px] px-4",
     variety: "w-[100px] px-4",
     cartonType: "w-[120px] px-4",
-    palletId: "w-[120px] px-4",
     numbers: "w-[110px] px-4 text-right",
     deviation: "w-[140px] px-4 text-right",
     value: "w-[140px] px-4 text-right",
