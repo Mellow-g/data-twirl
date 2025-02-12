@@ -16,8 +16,8 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
     <TableRow
       className={`${getRowClassName(record)} transition-colors border-b border-primary/10`}
     >
-      <TableCell className={`${columnClasses.consign} text-primary`}>{record.consignNumber}</TableCell>
-      <TableCell className={`${columnClasses.supplier} text-primary`}>{record.supplierRef}</TableCell>
+      <TableCell className={`${columnClasses.consign} text-primary font-medium`}>{record.consignNumber}</TableCell>
+      <TableCell className={`${columnClasses.supplier} text-primary font-medium`}>{record.supplierRef}</TableCell>
       <TableCell className={columnClasses.status}>
         <span
           className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium

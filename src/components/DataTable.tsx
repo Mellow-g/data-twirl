@@ -83,15 +83,15 @@ export const DataTable = ({ data }: DataTableProps) => {
   };
 
   const columnClasses: ColumnClasses = {
-    consign: "w-[160px] px-4",
-    supplier: "w-[160px] px-4",
-    status: "w-[110px] px-4",
-    variety: "w-[100px] px-4",
-    cartonType: "w-[120px] px-4",
-    numbers: "w-[110px] px-4 text-right",
-    deviation: "w-[140px] px-4 text-right",
-    value: "w-[140px] px-4 text-right",
-    reconciled: "w-[110px] px-4 text-center"
+    consign: "w-[180px] px-4",
+    supplier: "w-[180px] px-4",
+    status: "w-[120px] px-4",
+    variety: "w-[120px] px-4",
+    cartonType: "w-[130px] px-4",
+    numbers: "w-[120px] px-4 text-right tabular-nums",
+    deviation: "w-[150px] px-4 text-right tabular-nums",
+    value: "w-[160px] px-4 text-right tabular-nums",
+    reconciled: "w-[120px] px-4 text-center"
   };
 
   return (
@@ -108,7 +108,7 @@ export const DataTable = ({ data }: DataTableProps) => {
       />
 
       <div className="rounded-md border border-primary/20 bg-[#1A1F2C]">
-        <div className="border-b border-primary/20">
+        <div className="border-b border-primary/20 sticky top-0 z-10">
           <Table>
             <TableHeader columnClasses={columnClasses} />
           </Table>
