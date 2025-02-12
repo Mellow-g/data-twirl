@@ -31,24 +31,41 @@ export const DataTable = ({ data }: DataTableProps) => {
       return matchesStatus && matchesVariety && matchesReconciled;
     });
 
-    const reconciled: MatchedRecord[] = [];
-    const matched: MatchedRecord[] = [];
-    const unmatched: MatchedRecord[] = [];
-    const incomplete: MatchedRecord[] = [];
+    // Create groups for sorting
+    const groups: MatchedRecord[][] = [];
+    const processedRecords = new Set<MatchedRecord>();
 
+    // First pass: group by consignment number
     filtered.forEach(record => {
-      if (record.reconciled) {
-        reconciled.push(record);
-      } else if (!record.consignNumber && !record.supplierRef) {
-        incomplete.push(record);
-      } else if (record.status === 'Matched') {
-        matched.push(record);
-      } else {
-        unmatched.push(record);
+      if (processedRecords.has(record)) return;
+      
+      const group = filtered.filter(r => 
+        (record.consignNumber && r.consignNumber === record.consignNumber) ||
+        (record.supplierRef && r.supplierRef === record.supplierRef)
+      );
+      
+      if (group.length > 0) {
+        groups.push(group);
+        group.forEach(r => processedRecords.add(r));
       }
     });
 
-    return [...reconciled, ...matched, ...unmatched, ...incomplete];
+    // Add any remaining records
+    const remainingRecords = filtered.filter(record => !processedRecords.has(record));
+    if (remainingRecords.length > 0) {
+      groups.push(remainingRecords);
+    }
+
+    // Sort groups by reconciliation status, then flatten
+    const sortedGroups = groups.sort((a, b) => {
+      const aReconciled = a.some(r => r.reconciled);
+      const bReconciled = b.some(r => r.reconciled);
+      if (aReconciled && !bReconciled) return -1;
+      if (!aReconciled && bReconciled) return 1;
+      return 0;
+    });
+
+    return sortedGroups.flat();
   }, [data, statusFilter, varietyFilter, reconciledFilter]);
 
   const handleExport = () => {
