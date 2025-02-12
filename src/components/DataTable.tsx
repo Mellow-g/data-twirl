@@ -71,11 +71,12 @@ export const DataTable = ({ data }: DataTableProps) => {
   };
 
   const columnClasses = {
-    consign: "w-[180px] px-4",
-    supplier: "w-[200px] px-4",
+    consign: "w-[160px] px-4",
+    supplier: "w-[160px] px-4",
     status: "w-[110px] px-4",
     variety: "w-[100px] px-4",
-    cartonType: "w-[130px] px-4",
+    cartonType: "w-[120px] px-4",
+    palletId: "w-[120px] px-4",
     numbers: "w-[110px] px-4 text-right",
     deviation: "w-[140px] px-4 text-right",
     value: "w-[140px] px-4 text-right",
@@ -152,6 +153,9 @@ export const DataTable = ({ data }: DataTableProps) => {
                 <TableHead className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
                   Carton Type
                 </TableHead>
+                <TableHead className={`${columnClasses.palletId} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+                  Pallet ID
+                </TableHead>
                 <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
                   Cartons Sent
                 </TableHead>
@@ -199,6 +203,7 @@ export const DataTable = ({ data }: DataTableProps) => {
                   </TableCell>
                   <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
                   <TableCell className={`${columnClasses.cartonType} text-primary`}>{record.cartonType}</TableCell>
+                  <TableCell className={`${columnClasses.palletId} text-primary`}>{record.palletId}</TableCell>
                   <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.cartonsSent)}</TableCell>
                   <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.received)}</TableCell>
                   <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>

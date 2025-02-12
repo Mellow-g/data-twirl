@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -53,81 +54,90 @@ function isValidSupplierRef(ref: string | undefined): boolean {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  const loadDataMap = new Map();
-  const processedConsignments = new Set();
+  // Create a map to store sales data by last 4 digits
+  const salesDataMap = new Map();
   
-  loadData.forEach(load => {
-    const consignNumber = load['Consign']?.toString() || '';
-    const cartonsSent = Number(load['Sum of # Ctns']);
-    
-    const last4 = getLast4Digits(consignNumber);
-    if (last4) {
-      if (!loadDataMap.has(last4)) {
-        loadDataMap.set(last4, []);
+  salesData.forEach(sale => {
+    const supplierRef = sale['Supplier Ref']?.toString().trim();
+    if (isValidSupplierRef(supplierRef)) {
+      const last4 = getLast4Digits(supplierRef);
+      if (!salesDataMap.has(last4)) {
+        salesDataMap.set(last4, []);
       }
-      loadDataMap.get(last4).push({
-        consignNumber,
-        variety: load['Variety'] || '',
-        cartonType: load['Ctn Type'] || '',
-        cartonsSent: Number(load['Sum of # Ctns']) || 0
-      });
+      salesDataMap.get(last4).push(sale);
     }
   });
 
-  const matchedRecords: MatchedRecord[] = salesData
-    .filter(sale => {
-      const supplierRef = sale['Supplier Ref']?.toString().trim();
-      return isValidSupplierRef(supplierRef);
-    })
-    .map(sale => {
-      const supplierRef = sale['Supplier Ref'];
+  const matchedRecords: MatchedRecord[] = [];
+
+  // Process each load record individually
+  loadData.forEach(load => {
+    const consignNumber = load['Consign']?.toString() || '';
+    const last4 = getLast4Digits(consignNumber);
+    const palletId = load['Pallet ID'] || '';
+    const cartonsSent = Number(load['Sum of # Ctns']) || 0;
+
+    let matchedSale = null;
+    if (last4) {
+      const possibleSales = salesDataMap.get(last4) || [];
+      // Try to find a matching sale record
+      matchedSale = possibleSales.find(sale => 
+        Number(sale['Received']) === cartonsSent
+      ) || possibleSales[0];
+    }
+
+    // Create record whether matched or not
+    const received = matchedSale ? Number(matchedSale['Received']) || 0 : 0;
+    const soldOnMarket = matchedSale ? Number(matchedSale['Sold']) || 0 : 0;
+    const totalValue = matchedSale ? Number(matchedSale['Total Value']) || 0 : 0;
+
+    matchedRecords.push({
+      consignNumber,
+      supplierRef: matchedSale ? matchedSale['Supplier Ref'] || '' : '',
+      status: matchedSale ? 'Matched' : 'Unmatched',
+      variety: load['Variety'] || '',
+      cartonType: load['Ctn Type'] || '',
+      palletId,
+      cartonsSent,
+      received,
+      deviationSentReceived: cartonsSent - received,
+      soldOnMarket,
+      deviationReceivedSold: received - soldOnMarket,
+      totalValue,
+      reconciled: cartonsSent === received && received === soldOnMarket
+    });
+  });
+
+  // Add any unmatched sales records
+  salesData.forEach(sale => {
+    const supplierRef = sale['Supplier Ref']?.toString().trim();
+    if (isValidSupplierRef(supplierRef)) {
       const last4 = getLast4Digits(supplierRef);
-      const loadRecords = loadDataMap.get(last4) || [];
-      
-      const loadInfo = loadRecords.find(record => 
-        record.cartonsSent === Number(sale['Received'])
-      ) || loadRecords[0];
-
-      if (loadInfo) {
-        processedConsignments.add(loadInfo.consignNumber);
-      }
-
       const received = Number(sale['Received']) || 0;
       const soldOnMarket = Number(sale['Sold']) || 0;
 
-      return {
-        consignNumber: loadInfo ? loadInfo.consignNumber : '',
-        supplierRef: supplierRef || '',
-        status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
-        variety: loadInfo ? loadInfo.variety : '',
-        cartonType: loadInfo ? loadInfo.cartonType : '',
-        cartonsSent: loadInfo ? loadInfo.cartonsSent : 0,
-        received,
-        deviationSentReceived: loadInfo ? loadInfo.cartonsSent - received : 0,
-        soldOnMarket,
-        deviationReceivedSold: received - soldOnMarket,
-        totalValue: Number(sale['Total Value']) || 0,
-        reconciled: loadInfo ? (loadInfo.cartonsSent === received && received === soldOnMarket) : false
-      };
-    });
+      // Check if this sale has no matching load record
+      const hasMatch = matchedRecords.some(record => 
+        record.status === 'Matched' && record.supplierRef === supplierRef
+      );
 
-  loadData.forEach(load => {
-    const consignNumber = load['Consign']?.toString() || '';
-    if (!processedConsignments.has(consignNumber)) {
-      matchedRecords.push({
-        consignNumber,
-        supplierRef: '',
-        status: 'Unmatched' as const,
-        variety: load['Variety'] || '',
-        cartonType: load['Ctn Type'] || '',
-        cartonsSent: Number(load['Sum of # Ctns']) || 0,
-        received: 0,
-        deviationSentReceived: Number(load['Sum of # Ctns']) || 0,
-        soldOnMarket: 0,
-        deviationReceivedSold: 0,
-        totalValue: 0,
-        reconciled: false
-      });
+      if (!hasMatch) {
+        matchedRecords.push({
+          consignNumber: '',
+          supplierRef: supplierRef,
+          status: 'Unmatched',
+          variety: '',
+          cartonType: '',
+          palletId: '',
+          cartonsSent: 0,
+          received,
+          deviationSentReceived: -received,
+          soldOnMarket,
+          deviationReceivedSold: received - soldOnMarket,
+          totalValue: Number(sale['Total Value']) || 0,
+          reconciled: false
+        });
+      }
     }
   });
 
@@ -155,6 +165,7 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
+    'Pallet ID': item.palletId,
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
     'Deviation Sent/Received': item.deviationSentReceived,
