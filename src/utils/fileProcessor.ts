@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -19,20 +18,109 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
+function normalizeColumnName(name: string): string {
+  if (!name) return '';
+  return name.toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+function findColumnByVariants(headers: string[], variants: string[]): string | undefined {
+  const headerMap = new Map(
+    headers.map(header => [normalizeColumnName(header), header])
+  );
+  
+  for (const variant of variants) {
+    const normalizedVariant = normalizeColumnName(variant);
+    for (const [normalizedHeader, originalHeader] of headerMap.entries()) {
+      if (normalizedHeader.includes(normalizedVariant)) {
+        console.log(`Found match for ${variant}: ${originalHeader}`);
+        return originalHeader;
+      }
+    }
+  }
+  
+  console.log(`No match found for variants: ${variants.join(', ')}`);
+  return undefined;
+}
+
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
-        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        
+        const workbook = XLSX.read(e.target.result, { 
+          type: 'array',
+          cellDates: true,
+          cellNF: false,
+          cellText: false
+        });
+
+        console.log(`Processing file: ${file.name}`);
+        console.log(`Available sheets: ${workbook.SheetNames.join(', ')}`);
+
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(firstSheet, { 
           raw: true,
-          defval: ''
+          defval: null
         });
-        resolve(data);
+
+        console.log('Available columns:', Object.keys(data[0] || {}));
+
+        const requiredColumns = {
+          consign: ['consign', 'consignment', 'cons no', 'cons number', 'consignment number', 'cons', 'palletno', 'pallet'],
+          supplierRef: ['supplier ref', 'supplier reference', 'supplier', 'grower ref', 'grower reference', 'grower', 'producer'],
+          variety: ['variety', 'varieties', 'product', 'fruit type', 'commodity'],
+          cartonType: ['ctn type', 'carton type', 'package type', 'packaging', 'pack', 'container'],
+          cartonsSent: ['ctns', '# ctns', 'sum of # ctns', 'cartons', 'qty sent', 'quantity sent', 'qty', 'quantity'],
+          received: ['received', 'qty received', 'quantity received', 'rec qty', 'rec'],
+          sold: ['sold', 'qty sold', 'quantity sold', 'sales qty', 'sales'],
+          totalValue: ['total value', 'value', 'sales value', 'total sales', 'amount']
+        };
+
+        const headers = Object.keys(data[0] || {});
+        const columnMapping: { [key: string]: string } = {};
+        
+        for (const [key, variants] of Object.entries(requiredColumns)) {
+          const foundColumn = findColumnByVariants(headers, variants);
+          if (foundColumn) {
+            columnMapping[key] = foundColumn;
+            console.log(`Mapped ${key} to column: ${foundColumn}`);
+          } else {
+            console.log(`Warning: No match found for ${key}`);
+          }
+        }
+
+        const cleanedData = data.map((row: any) => {
+          const cleanedRow: any = {};
+          
+          for (const [key, column] of Object.entries(columnMapping)) {
+            let value = row[column];
+            
+            if (typeof value === 'string') {
+              value = value.replace(/[^0-9.-]/g, '');
+              value = value === '' ? 0 : Number(value);
+            } else if (typeof value === 'number') {
+              value = value;
+            } else {
+              value = 0;
+            }
+            
+            cleanedRow[key] = value;
+          }
+          
+          return cleanedRow;
+        }).filter((row: any) => {
+          return Object.values(row).some((value: any) => value !== 0);
+        });
+
+        console.log(`Processed ${cleanedData.length} rows of data`);
+        resolve(cleanedData);
       } catch (err) {
+        console.error('Error processing file:', err);
         reject(err);
       }
     };
@@ -54,7 +142,6 @@ function isValidSupplierRef(ref: string | undefined): boolean {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  // Create a map to store sales data by last 4 digits
   const salesDataMap = new Map();
   
   salesData.forEach(sale => {
@@ -70,7 +157,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
   const matchedRecords: MatchedRecord[] = [];
 
-  // Process each load record individually
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
@@ -79,13 +165,11 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     let matchedSale = null;
     if (last4) {
       const possibleSales = salesDataMap.get(last4) || [];
-      // Try to find a matching sale record
       matchedSale = possibleSales.find(sale => 
         Number(sale['Received']) === cartonsSent
       ) || possibleSales[0];
     }
 
-    // Create record whether matched or not
     const received = matchedSale ? Number(matchedSale['Received']) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale['Sold']) || 0 : 0;
     const totalValue = matchedSale ? Number(matchedSale['Total Value']) || 0 : 0;
@@ -106,7 +190,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
-  // Add any unmatched sales records
   salesData.forEach(sale => {
     const supplierRef = sale['Supplier Ref']?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
@@ -114,7 +197,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const received = Number(sale['Received']) || 0;
       const soldOnMarket = Number(sale['Sold']) || 0;
 
-      // Check if this sale has no matching load record
       const hasMatch = matchedRecords.some(record => 
         record.status === 'Matched' && record.supplierRef === supplierRef
       );
