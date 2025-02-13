@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -106,7 +105,7 @@ function extractRelevantData(rawData: any[]): any[] {
 
   // Extract and clean data
   return rawData.map(row => {
-    const cleanedRow: any = {};
+    const cleanedRow: { [key: string]: number } = {};
     for (const [key, column] of Object.entries(actualColumns)) {
       let value = row[column];
       
@@ -117,14 +116,18 @@ function extractRelevantData(rawData: any[]): any[] {
         value = value === '' ? 0 : Number(value);
       } else if (value === undefined || value === null) {
         value = 0;
+      } else if (typeof value === 'number') {
+        value = value;
+      } else {
+        value = 0;
       }
 
-      cleanedRow[key] = value;
+      cleanedRow[key] = Number(value);
     }
     return cleanedRow;
-  }).filter((row: any) => {
+  }).filter((row: { [key: string]: number }) => {
     // Filter out rows with no meaningful data
-    return Object.values(row).some((value: any) => value !== 0 && value !== '');
+    return Object.values(row as Record<string, number>).some(value => value !== 0);
   });
 }
 
