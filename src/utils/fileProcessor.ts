@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -18,184 +19,20 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
-function normalizeColumnName(name: string): string {
-  if (!name) return '';
-  // Remove special characters, extra spaces, and convert to lowercase
-  return name.toString()
-    .toLowerCase()
-    .replace(/[\s\-_]+/g, ' ')
-    .trim();
-}
-
-function findColumnByVariants(headers: string[], variants: string[]): string | undefined {
-  const normalizedHeaders = headers.map(normalizeColumnName);
-  const normalizedVariants = variants.map(normalizeColumnName);
-  
-  for (const variant of normalizedVariants) {
-    const index = normalizedHeaders.findIndex(header => header.includes(variant));
-    if (index !== -1) return headers[index];
-  }
-  return undefined;
-}
-
-function preprocessWorksheet(worksheet: XLSX.WorkSheet): XLSX.WorkSheet {
-  // Remove any filters
-  delete worksheet['!autofilter'];
-  
-  // Get the used range
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-  
-  // Create a new worksheet with just the values
-  const newWs: XLSX.WorkSheet = {};
-  
-  for (let R = range.s.r; R <= range.e.r; R++) {
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
-      const cell = worksheet[cellAddr];
-      
-      if (cell && cell.v !== undefined && cell.v !== null) {
-        newWs[cellAddr] = { 
-          t: cell.t, // Keep the type
-          v: cell.v, // Keep the value
-          w: cell.w  // Keep the formatted text if available
-        };
-      }
-    }
-  }
-  
-  // Set the range reference
-  newWs['!ref'] = worksheet['!ref'];
-  
-  return newWs;
-}
-
-function isPalletStockSection(headers: string[]): boolean {
-  const normalizedHeaders = headers.map(normalizeColumnName);
-  return normalizedHeaders.some(header => 
-    header.includes('pallet') || 
-    header.includes('stock') || 
-    header.includes('consign')
-  );
-}
-
-function extractRelevantData(rawData: any[]): any[] {
-  if (!Array.isArray(rawData) || !rawData.length) return [];
-
-  // Get all possible headers
-  const headers = Object.keys(rawData[0] || {});
-
-  // Define column variants for each required field
-  const columnMappings = {
-    consign: ['consign', 'consignment', 'cons no', 'cons number', 'consignment number'],
-    supplierRef: ['supplier ref', 'supplier reference', 'supplier', 'grower ref', 'grower reference'],
-    variety: ['variety', 'varieties', 'product', 'fruit type'],
-    cartonType: ['ctn type', 'carton type', 'package type', 'packaging'],
-    cartonsSent: ['ctns', '# ctns', 'sum of # ctns', 'cartons', 'qty sent', 'quantity sent'],
-    received: ['received', 'qty received', 'quantity received', 'rec qty'],
-    sold: ['sold', 'qty sold', 'quantity sold', 'sales qty'],
-    totalValue: ['total value', 'value', 'sales value', 'total sales']
-  };
-
-  // Create mapping for actual column names
-  const actualColumns: { [key: string]: string } = {};
-  for (const [key, variants] of Object.entries(columnMappings)) {
-    const foundColumn = findColumnByVariants(headers, variants);
-    if (foundColumn) actualColumns[key] = foundColumn;
-  }
-
-  // Extract and clean data
-  return rawData.map(row => {
-    const cleanedRow: { [key: string]: number } = {};
-    for (const [key, column] of Object.entries(actualColumns)) {
-      let value = row[column];
-      
-      // Handle different data formats
-      if (typeof value === 'string') {
-        // Remove any currency symbols and convert to number if applicable
-        value = value.replace(/[^0-9.-]/g, '');
-        value = value === '' ? 0 : Number(value);
-      } else if (value === undefined || value === null) {
-        value = 0;
-      } else if (typeof value === 'number') {
-        value = value;
-      } else {
-        value = 0;
-      }
-
-      cleanedRow[key] = Number(value);
-    }
-    return cleanedRow;
-  }).filter((row: { [key: string]: number }) => {
-    // Filter out rows with no meaningful data
-    return Object.values(row as Record<string, number>).some(value => value !== 0);
-  });
-}
-
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
-        
-        // Read workbook with all sheets
-        const workbook = XLSX.read(e.target.result, { 
-          type: 'array',
-          cellDates: true,
-          cellNF: false,
-          cellText: false
+        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(firstSheet, { 
+          raw: true,
+          defval: ''
         });
-
-        // Process each sheet
-        let data: any[] = [];
-        for (const sheetName of workbook.SheetNames) {
-          const worksheet = workbook.Sheets[sheetName];
-          
-          // Preprocess the worksheet to remove filters and clean data
-          const cleanWorksheet = preprocessWorksheet(worksheet);
-          
-          // Convert to array format first
-          const sheetData = XLSX.utils.sheet_to_json(cleanWorksheet, {
-            header: 1,
-            raw: true,
-            defval: null
-          }) as any[][];
-
-          // Skip empty sheets
-          if (!Array.isArray(sheetData) || sheetData.length < 2) continue;
-
-          // Get headers (first row)
-          const headers = sheetData[0].map(String);
-
-          // For load reports, only process if it's the pallet stock section
-          if (file.name.toLowerCase().includes('load') && !isPalletStockSection(headers)) {
-            continue;
-          }
-
-          // Convert to object format
-          const jsonData = sheetData.slice(1)
-            .filter(row => Array.isArray(row) && row.some(cell => cell !== null))
-            .map(row => {
-              const obj: any = {};
-              headers.forEach((header, index) => {
-                if (row[index] !== null) {
-                  obj[header] = row[index];
-                }
-              });
-              return obj;
-            });
-
-          if (jsonData.length > 0) {
-            data = jsonData;
-            break; // Use first valid sheet
-          }
-        }
-
-        // Clean and normalize the data
-        const cleanedData = extractRelevantData(data);
-        resolve(cleanedData);
+        resolve(data);
       } catch (err) {
-        console.error('Error processing file:', err);
         reject(err);
       }
     };
