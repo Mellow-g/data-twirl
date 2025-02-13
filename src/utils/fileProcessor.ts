@@ -20,6 +20,7 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
 }
 
 function normalizeColumnName(name: string): string {
+  if (!name) return '';
   // Remove special characters, extra spaces, and convert to lowercase
   return name.toString()
     .toLowerCase()
@@ -38,11 +39,51 @@ function findColumnByVariants(headers: string[], variants: string[]): string | u
   return undefined;
 }
 
+function preprocessWorksheet(worksheet: XLSX.WorkSheet): XLSX.WorkSheet {
+  // Remove any filters
+  delete worksheet['!autofilter'];
+  
+  // Get the used range
+  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+  
+  // Create a new worksheet with just the values
+  const newWs: XLSX.WorkSheet = {};
+  
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = worksheet[cellAddr];
+      
+      if (cell && cell.v !== undefined && cell.v !== null) {
+        newWs[cellAddr] = { 
+          t: cell.t, // Keep the type
+          v: cell.v, // Keep the value
+          w: cell.w  // Keep the formatted text if available
+        };
+      }
+    }
+  }
+  
+  // Set the range reference
+  newWs['!ref'] = worksheet['!ref'];
+  
+  return newWs;
+}
+
+function isPalletStockSection(headers: string[]): boolean {
+  const normalizedHeaders = headers.map(normalizeColumnName);
+  return normalizedHeaders.some(header => 
+    header.includes('pallet') || 
+    header.includes('stock') || 
+    header.includes('consign')
+  );
+}
+
 function extractRelevantData(rawData: any[]): any[] {
-  if (!rawData || !rawData.length) return [];
+  if (!Array.isArray(rawData) || !rawData.length) return [];
 
   // Get all possible headers
-  const headers = Object.keys(rawData[0]);
+  const headers = Object.keys(rawData[0] || {});
 
   // Define column variants for each required field
   const columnMappings = {
@@ -81,9 +122,9 @@ function extractRelevantData(rawData: any[]): any[] {
       cleanedRow[key] = value;
     }
     return cleanedRow;
-  }).filter(row => {
+  }).filter((row: any) => {
     // Filter out rows with no meaningful data
-    return Object.values(row).some(value => value !== 0 && value !== '');
+    return Object.values(row).some((value: any) => value !== 0 && value !== '');
   });
 }
 
@@ -102,43 +143,48 @@ export async function processFile(file: File): Promise<any[]> {
           cellText: false
         });
 
-        // Find the first non-empty sheet
+        // Process each sheet
         let data: any[] = [];
         for (const sheetName of workbook.SheetNames) {
           const worksheet = workbook.Sheets[sheetName];
           
-          // Get the sheet range
-          const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+          // Preprocess the worksheet to remove filters and clean data
+          const cleanWorksheet = preprocessWorksheet(worksheet);
           
-          // Skip empty sheets
-          if (range.e.r < 1) continue;  // Sheet has no data rows
-          
-          // Convert sheet to JSON with options
-          const sheetData = XLSX.utils.sheet_to_json(worksheet, {
+          // Convert to array format first
+          const sheetData = XLSX.utils.sheet_to_json(cleanWorksheet, {
+            header: 1,
             raw: true,
-            defval: '',
-            blankrows: false,
-            header: 1
-          });
+            defval: null
+          }) as any[][];
 
-          // Remove empty rows and columns
-          const cleanData = sheetData
-            .filter(row => row.some((cell: any) => cell !== ''))
-            .map(row => row.filter((cell: any) => cell !== ''));
+          // Skip empty sheets
+          if (!Array.isArray(sheetData) || sheetData.length < 2) continue;
 
-          if (cleanData.length > 0) {
-            // Convert array format to object format
-            const headers = cleanData[0];
-            data = cleanData.slice(1).map(row => {
+          // Get headers (first row)
+          const headers = sheetData[0].map(String);
+
+          // For load reports, only process if it's the pallet stock section
+          if (file.name.toLowerCase().includes('load') && !isPalletStockSection(headers)) {
+            continue;
+          }
+
+          // Convert to object format
+          const jsonData = sheetData.slice(1)
+            .filter(row => Array.isArray(row) && row.some(cell => cell !== null))
+            .map(row => {
               const obj: any = {};
-              headers.forEach((header: string, index: number) => {
-                if (row[index] !== undefined) {
+              headers.forEach((header, index) => {
+                if (row[index] !== null) {
                   obj[header] = row[index];
                 }
               });
               return obj;
             });
-            break;  // Use first non-empty sheet
+
+          if (jsonData.length > 0) {
+            data = jsonData;
+            break; // Use first valid sheet
           }
         }
 
