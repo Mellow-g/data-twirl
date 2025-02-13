@@ -19,20 +19,134 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
+function normalizeColumnName(name: string): string {
+  // Remove special characters, extra spaces, and convert to lowercase
+  return name.toString()
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, ' ')
+    .trim();
+}
+
+function findColumnByVariants(headers: string[], variants: string[]): string | undefined {
+  const normalizedHeaders = headers.map(normalizeColumnName);
+  const normalizedVariants = variants.map(normalizeColumnName);
+  
+  for (const variant of normalizedVariants) {
+    const index = normalizedHeaders.findIndex(header => header.includes(variant));
+    if (index !== -1) return headers[index];
+  }
+  return undefined;
+}
+
+function extractRelevantData(rawData: any[]): any[] {
+  if (!rawData || !rawData.length) return [];
+
+  // Get all possible headers
+  const headers = Object.keys(rawData[0]);
+
+  // Define column variants for each required field
+  const columnMappings = {
+    consign: ['consign', 'consignment', 'cons no', 'cons number', 'consignment number'],
+    supplierRef: ['supplier ref', 'supplier reference', 'supplier', 'grower ref', 'grower reference'],
+    variety: ['variety', 'varieties', 'product', 'fruit type'],
+    cartonType: ['ctn type', 'carton type', 'package type', 'packaging'],
+    cartonsSent: ['ctns', '# ctns', 'sum of # ctns', 'cartons', 'qty sent', 'quantity sent'],
+    received: ['received', 'qty received', 'quantity received', 'rec qty'],
+    sold: ['sold', 'qty sold', 'quantity sold', 'sales qty'],
+    totalValue: ['total value', 'value', 'sales value', 'total sales']
+  };
+
+  // Create mapping for actual column names
+  const actualColumns: { [key: string]: string } = {};
+  for (const [key, variants] of Object.entries(columnMappings)) {
+    const foundColumn = findColumnByVariants(headers, variants);
+    if (foundColumn) actualColumns[key] = foundColumn;
+  }
+
+  // Extract and clean data
+  return rawData.map(row => {
+    const cleanedRow: any = {};
+    for (const [key, column] of Object.entries(actualColumns)) {
+      let value = row[column];
+      
+      // Handle different data formats
+      if (typeof value === 'string') {
+        // Remove any currency symbols and convert to number if applicable
+        value = value.replace(/[^0-9.-]/g, '');
+        value = value === '' ? 0 : Number(value);
+      } else if (value === undefined || value === null) {
+        value = 0;
+      }
+
+      cleanedRow[key] = value;
+    }
+    return cleanedRow;
+  }).filter(row => {
+    // Filter out rows with no meaningful data
+    return Object.values(row).some(value => value !== 0 && value !== '');
+  });
+}
+
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
-        const workbook = XLSX.read(e.target.result, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(firstSheet, { 
-          raw: true,
-          defval: ''
+        
+        // Read workbook with all sheets
+        const workbook = XLSX.read(e.target.result, { 
+          type: 'array',
+          cellDates: true,
+          cellNF: false,
+          cellText: false
         });
-        resolve(data);
+
+        // Find the first non-empty sheet
+        let data: any[] = [];
+        for (const sheetName of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Get the sheet range
+          const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+          
+          // Skip empty sheets
+          if (range.e.r < 1) continue;  // Sheet has no data rows
+          
+          // Convert sheet to JSON with options
+          const sheetData = XLSX.utils.sheet_to_json(worksheet, {
+            raw: true,
+            defval: '',
+            blankrows: false,
+            header: 1
+          });
+
+          // Remove empty rows and columns
+          const cleanData = sheetData
+            .filter(row => row.some((cell: any) => cell !== ''))
+            .map(row => row.filter((cell: any) => cell !== ''));
+
+          if (cleanData.length > 0) {
+            // Convert array format to object format
+            const headers = cleanData[0];
+            data = cleanData.slice(1).map(row => {
+              const obj: any = {};
+              headers.forEach((header: string, index: number) => {
+                if (row[index] !== undefined) {
+                  obj[header] = row[index];
+                }
+              });
+              return obj;
+            });
+            break;  // Use first non-empty sheet
+          }
+        }
+
+        // Clean and normalize the data
+        const cleanedData = extractRelevantData(data);
+        resolve(cleanedData);
       } catch (err) {
+        console.error('Error processing file:', err);
         reject(err);
       }
     };
