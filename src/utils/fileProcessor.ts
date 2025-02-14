@@ -21,8 +21,8 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
 function normalizeColumnName(name: string): string {
   return String(name)
     .toLowerCase()
-    .replace(/[\s\-_\.\/\\]+/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    .replace(/[\s\-_\.\/\\]+/g, '') // Replace spaces, hyphens, underscores, dots with nothing
+    .replace(/[^a-z0-9]/g, ''); // Remove any remaining special characters
 }
 
 function extractNumber(value: any): number {
@@ -34,47 +34,28 @@ function extractNumber(value: any): number {
   return numericValue ? Number(numericValue) : 0;
 }
 
-function findBestMatchingColumn(headers: string[], searchTerms: string[]): string | undefined {
+function findMatchingColumn(headers: string[], searchTerms: string[]): string | undefined {
   const normalizedHeaders = headers.map(normalizeColumnName);
-  const scoreMap = new Map<string, number>();
-
-  // Initialize scores for each header
-  headers.forEach((header, index) => {
-    scoreMap.set(header, 0);
-    const normalizedHeader = normalizedHeaders[index];
-
-    searchTerms.forEach(term => {
-      const normalizedTerm = normalizeColumnName(term);
-      
-      // Exact match gets highest score
-      if (normalizedHeader === normalizedTerm) {
-        scoreMap.set(header, scoreMap.get(header)! + 3);
-      }
-      // Partial match gets lower score
-      else if (normalizedHeader.includes(normalizedTerm)) {
-        scoreMap.set(header, scoreMap.get(header)! + 2);
-      }
-      // Contains any word from the term gets lowest score
-      else if (term.split(' ').some(word => 
-        normalizedHeader.includes(normalizeColumnName(word))
-      )) {
-        scoreMap.set(header, scoreMap.get(header)! + 1);
-      }
-    });
-  });
-
-  // Find header with highest score
-  let bestMatch: string | undefined;
-  let bestScore = 0;
-
-  scoreMap.forEach((score, header) => {
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = header;
+  
+  // Try exact matches first
+  for (const term of searchTerms) {
+    const normalizedTerm = normalizeColumnName(term);
+    const exactMatchIndex = normalizedHeaders.findIndex(header => header === normalizedTerm);
+    if (exactMatchIndex >= 0) {
+      return headers[exactMatchIndex];
     }
-  });
+  }
 
-  return bestMatch;
+  // Try partial matches if no exact match found
+  for (const term of searchTerms) {
+    const normalizedTerm = normalizeColumnName(term);
+    const partialMatchIndex = normalizedHeaders.findIndex(header => header.includes(normalizedTerm));
+    if (partialMatchIndex >= 0) {
+      return headers[partialMatchIndex];
+    }
+  }
+
+  return undefined;
 }
 
 export async function processFile(file: File): Promise<any[]> {
@@ -104,22 +85,22 @@ export async function processFile(file: File): Promise<any[]> {
         const availableColumns = Object.keys(rawData[0]);
         console.log('Available columns:', availableColumns);
 
-        // Define possible column names for each required field
+        // Define column mappings with variants
         const columnMappings = {
-          consign: ['consign', 'consignment', 'cons no', 'cons number', 'pallet', 'pallet no', 'palletno'],
-          supplierRef: ['supplier ref', 'supplier', 'grower ref', 'grower', 'producer', 'farm'],
-          variety: ['variety', 'product', 'fruit', 'commodity', 'produce'],
-          cartonType: ['carton type', 'ctn type', 'package', 'pack type', 'container'],
-          cartonsSent: ['cartons', 'ctns', 'qty sent', 'quantity', 'qty', 'units', 'pieces'],
-          received: ['received', 'qty received', 'rec qty', 'intake'],
-          sold: ['sold', 'qty sold', 'sales qty', 'dispatched'],
-          totalValue: ['total value', 'value', 'amount', 'total', 'sales value']
+          consign: ['Consign', 'Pallet Type', 'Pallet No', 'PalletNo'],
+          supplierRef: ['Grower', 'Supplier Ref', 'Supplier', 'Producer'],
+          variety: ['Variety', 'Product', 'Fruit', 'Commodity'],
+          cartonType: ['Ctn Type', 'Carton Type', 'Package Type', 'Container'],
+          cartonsSent: ['Sum of # Ctns', 'Cartons', 'Qty Sent', 'Quantity'],
+          received: ['Received', 'Intake', 'Qty Received', 'Rec Qty'],
+          sold: ['Sold', 'Qty Sold', 'Sales Qty', 'Dispatched'],
+          totalValue: ['Total Value', 'Value', 'Amount', 'Sales Value']
         };
 
-        // Find best matching columns
+        // Find matching columns
         const columnMatches: Record<string, string> = {};
         for (const [key, searchTerms] of Object.entries(columnMappings)) {
-          const match = findBestMatchingColumn(availableColumns, searchTerms);
+          const match = findMatchingColumn(availableColumns, searchTerms);
           if (match) {
             columnMatches[key] = match;
             console.log(`Matched ${key} to column: ${match}`);
