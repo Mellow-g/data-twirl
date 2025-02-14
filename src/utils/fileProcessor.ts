@@ -74,7 +74,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
-    const cartonsSent = Number(load['Sum of # Ctns']) || 0;
+    const cartonsSent = Number(load['# Ctns']) || 0;
 
     let matchedSale = null;
     if (last4) {
