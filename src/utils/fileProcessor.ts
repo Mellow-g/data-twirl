@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -19,23 +18,149 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
+function normalizeColumnName(name: string): string {
+  return String(name)
+    .toLowerCase()
+    .replace(/[\s\-_\.\/\\]+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function extractNumber(value: any): number {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  
+  const strValue = String(value);
+  const numericValue = strValue.replace(/[^0-9.-]/g, '');
+  return numericValue ? Number(numericValue) : 0;
+}
+
+function findBestMatchingColumn(headers: string[], searchTerms: string[]): string | undefined {
+  const normalizedHeaders = headers.map(normalizeColumnName);
+  const scoreMap = new Map<string, number>();
+
+  // Initialize scores for each header
+  headers.forEach((header, index) => {
+    scoreMap.set(header, 0);
+    const normalizedHeader = normalizedHeaders[index];
+
+    searchTerms.forEach(term => {
+      const normalizedTerm = normalizeColumnName(term);
+      
+      // Exact match gets highest score
+      if (normalizedHeader === normalizedTerm) {
+        scoreMap.set(header, scoreMap.get(header)! + 3);
+      }
+      // Partial match gets lower score
+      else if (normalizedHeader.includes(normalizedTerm)) {
+        scoreMap.set(header, scoreMap.get(header)! + 2);
+      }
+      // Contains any word from the term gets lowest score
+      else if (term.split(' ').some(word => 
+        normalizedHeader.includes(normalizeColumnName(word))
+      )) {
+        scoreMap.set(header, scoreMap.get(header)! + 1);
+      }
+    });
+  });
+
+  // Find header with highest score
+  let bestMatch: string | undefined;
+  let bestScore = 0;
+
+  scoreMap.forEach((score, header) => {
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = header;
+    }
+  });
+
+  return bestMatch;
+}
+
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
+        
         const workbook = XLSX.read(e.target.result, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(firstSheet, { 
+        
+        // Convert sheet to JSON with raw values
+        const rawData = XLSX.utils.sheet_to_json(firstSheet, { 
           raw: true,
-          defval: ''
+          defval: null
         });
-        resolve(data);
+
+        if (!rawData.length) {
+          console.warn('No data found in sheet');
+          resolve([]);
+          return;
+        }
+
+        // Get all available columns
+        const availableColumns = Object.keys(rawData[0]);
+        console.log('Available columns:', availableColumns);
+
+        // Define possible column names for each required field
+        const columnMappings = {
+          consign: ['consign', 'consignment', 'cons no', 'cons number', 'pallet', 'pallet no', 'palletno'],
+          supplierRef: ['supplier ref', 'supplier', 'grower ref', 'grower', 'producer', 'farm'],
+          variety: ['variety', 'product', 'fruit', 'commodity', 'produce'],
+          cartonType: ['carton type', 'ctn type', 'package', 'pack type', 'container'],
+          cartonsSent: ['cartons', 'ctns', 'qty sent', 'quantity', 'qty', 'units', 'pieces'],
+          received: ['received', 'qty received', 'rec qty', 'intake'],
+          sold: ['sold', 'qty sold', 'sales qty', 'dispatched'],
+          totalValue: ['total value', 'value', 'amount', 'total', 'sales value']
+        };
+
+        // Find best matching columns
+        const columnMatches: Record<string, string> = {};
+        for (const [key, searchTerms] of Object.entries(columnMappings)) {
+          const match = findBestMatchingColumn(availableColumns, searchTerms);
+          if (match) {
+            columnMatches[key] = match;
+            console.log(`Matched ${key} to column: ${match}`);
+          } else {
+            console.warn(`No match found for ${key}`);
+          }
+        }
+
+        // Transform data using matched columns
+        const processedData = rawData
+          .map(row => {
+            const processed: Record<string, any> = {};
+            
+            for (const [key, column] of Object.entries(columnMatches)) {
+              const value = row[column];
+              
+              // Convert numeric fields to numbers
+              if (['cartonsSent', 'received', 'sold', 'totalValue'].includes(key)) {
+                processed[key] = extractNumber(value);
+              } else {
+                processed[key] = value || '';
+              }
+            }
+
+            return processed;
+          })
+          .filter(row => {
+            // Keep rows that have at least one non-empty value
+            return Object.values(row).some(value => 
+              value !== '' && value !== 0 && value != null
+            );
+          });
+
+        console.log(`Processed ${processedData.length} rows`);
+        resolve(processedData);
       } catch (err) {
+        console.error('Error processing file:', err);
         reject(err);
       }
     };
+
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsArrayBuffer(file);
   });
