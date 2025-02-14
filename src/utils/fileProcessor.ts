@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -18,130 +19,23 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
-function normalizeColumnName(name: string): string {
-  return String(name)
-    .toLowerCase()
-    .replace(/[\s\-_\.\/\\]+/g, '') // Replace spaces, hyphens, underscores, dots with nothing
-    .replace(/[^a-z0-9]/g, ''); // Remove any remaining special characters
-}
-
-function extractNumber(value: any): number {
-  if (typeof value === 'number') return value;
-  if (!value) return 0;
-  
-  const strValue = String(value);
-  const numericValue = strValue.replace(/[^0-9.-]/g, '');
-  return numericValue ? Number(numericValue) : 0;
-}
-
-function findMatchingColumn(headers: string[], searchTerms: string[]): string | undefined {
-  const normalizedHeaders = headers.map(normalizeColumnName);
-  
-  // Try exact matches first
-  for (const term of searchTerms) {
-    const normalizedTerm = normalizeColumnName(term);
-    const exactMatchIndex = normalizedHeaders.findIndex(header => header === normalizedTerm);
-    if (exactMatchIndex >= 0) {
-      return headers[exactMatchIndex];
-    }
-  }
-
-  // Try partial matches if no exact match found
-  for (const term of searchTerms) {
-    const normalizedTerm = normalizeColumnName(term);
-    const partialMatchIndex = normalizedHeaders.findIndex(header => header.includes(normalizedTerm));
-    if (partialMatchIndex >= 0) {
-      return headers[partialMatchIndex];
-    }
-  }
-
-  return undefined;
-}
-
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
-        
         const workbook = XLSX.read(e.target.result, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        
-        // Convert sheet to JSON with raw values
-        const rawData = XLSX.utils.sheet_to_json(firstSheet, { 
+        const data = XLSX.utils.sheet_to_json(firstSheet, { 
           raw: true,
-          defval: null
+          defval: ''
         });
-
-        if (!rawData.length) {
-          console.warn('No data found in sheet');
-          resolve([]);
-          return;
-        }
-
-        // Get all available columns
-        const availableColumns = Object.keys(rawData[0]);
-        console.log('Available columns:', availableColumns);
-
-        // Define column mappings with variants
-        const columnMappings = {
-          consign: ['Consign', 'Pallet Type', 'Pallet No', 'PalletNo'],
-          supplierRef: ['Grower', 'Supplier Ref', 'Supplier', 'Producer'],
-          variety: ['Variety', 'Product', 'Fruit', 'Commodity'],
-          cartonType: ['Ctn Type', 'Carton Type', 'Package Type', 'Container'],
-          cartonsSent: ['Sum of # Ctns', 'Cartons', 'Qty Sent', 'Quantity'],
-          received: ['Received', 'Intake', 'Qty Received', 'Rec Qty'],
-          sold: ['Sold', 'Qty Sold', 'Sales Qty', 'Dispatched'],
-          totalValue: ['Total Value', 'Value', 'Amount', 'Sales Value']
-        };
-
-        // Find matching columns
-        const columnMatches: Record<string, string> = {};
-        for (const [key, searchTerms] of Object.entries(columnMappings)) {
-          const match = findMatchingColumn(availableColumns, searchTerms);
-          if (match) {
-            columnMatches[key] = match;
-            console.log(`Matched ${key} to column: ${match}`);
-          } else {
-            console.warn(`No match found for ${key}`);
-          }
-        }
-
-        // Transform data using matched columns
-        const processedData = rawData
-          .map(row => {
-            const processed: Record<string, any> = {};
-            
-            for (const [key, column] of Object.entries(columnMatches)) {
-              const value = row[column];
-              
-              // Convert numeric fields to numbers
-              if (['cartonsSent', 'received', 'sold', 'totalValue'].includes(key)) {
-                processed[key] = extractNumber(value);
-              } else {
-                processed[key] = value || '';
-              }
-            }
-
-            return processed;
-          })
-          .filter(row => {
-            // Keep rows that have at least one non-empty value
-            return Object.values(row).some(value => 
-              value !== '' && value !== 0 && value != null
-            );
-          });
-
-        console.log(`Processed ${processedData.length} rows`);
-        resolve(processedData);
+        resolve(data);
       } catch (err) {
-        console.error('Error processing file:', err);
         reject(err);
       }
     };
-
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsArrayBuffer(file);
   });
