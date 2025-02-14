@@ -83,15 +83,15 @@ export const DataTable = ({ data }: DataTableProps) => {
   };
 
   const columnClasses: ColumnClasses = {
-    consign: "w-[180px] px-4",
-    supplier: "w-[180px] px-4",
-    status: "w-[120px] px-4",
-    variety: "w-[120px] px-4",
-    cartonType: "w-[130px] px-4",
-    numbers: "w-[120px] px-4 text-right tabular-nums",
-    deviation: "w-[150px] px-4 text-right tabular-nums",
-    value: "w-[160px] px-4 text-right tabular-nums",
-    reconciled: "w-[120px] px-4 text-center"
+    consign: "w-[150px] px-2 text-left",
+    supplier: "w-[150px] px-2 text-left",
+    status: "w-[100px] px-2 text-center",
+    variety: "w-[100px] px-2 text-center",
+    cartonType: "w-[100px] px-2 text-center",
+    numbers: "w-[100px] px-2 text-right tabular-nums",
+    deviation: "w-[120px] px-2 text-right tabular-nums",
+    value: "w-[120px] px-2 text-right tabular-nums",
+    reconciled: "w-[100px] px-2 text-center"
   };
 
   return (
