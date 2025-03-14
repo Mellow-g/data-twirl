@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { StatsCard } from '@/components/StatsCard';
@@ -6,7 +7,8 @@ import { FileData, FileType, MatchedRecord, Statistics } from '@/types';
 import { processFile, matchData, calculateStatistics } from '@/utils/fileProcessor';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Building2 } from 'lucide-react';
+import { Building2, AlertTriangle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Index = () => {
   const [loadFile, setLoadFile] = useState<File>();
@@ -14,9 +16,13 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [matchedData, setMatchedData] = useState<MatchedRecord[]>();
   const [statistics, setStatistics] = useState<Statistics>();
+  const [error, setError] = useState<string>();
   const { toast } = useToast();
 
   const handleFileSelect = (file: File, type: FileType) => {
+    // Clear previous errors when a new file is selected
+    setError(undefined);
+    
     if (type === 'load') {
       setLoadFile(file);
     } else {
@@ -35,24 +41,51 @@ const Index = () => {
     }
 
     setIsProcessing(true);
+    setError(undefined);
+    
     try {
-      const loadData = await processFile(loadFile);
-      const salesData = await processFile(salesFile);
+      // Process both files
+      let loadData, salesData;
       
-      const matched = matchData(loadData, salesData);
-      const stats = calculateStatistics(matched);
+      try {
+        loadData = await processFile(loadFile);
+        console.log("Load data processed successfully");
+      } catch (err) {
+        throw new Error(`Error processing Load file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
       
-      setMatchedData(matched);
-      setStatistics(stats);
+      try {
+        salesData = await processFile(salesFile);
+        console.log("Sales data processed successfully");
+      } catch (err) {
+        throw new Error(`Error processing Sales file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
       
-      toast({
-        title: "Analysis complete",
-        description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records`,
-      });
+      // Match the data
+      try {
+        const matched = matchData(loadData, salesData);
+        const stats = calculateStatistics(matched);
+        
+        setMatchedData(matched);
+        setStatistics(stats);
+        
+        toast({
+          title: "Analysis complete",
+          description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records`,
+        });
+      } catch (err) {
+        throw new Error(`Error matching data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+      
     } catch (error) {
+      console.error("Analysis error:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      setError(errorMessage);
+      
       toast({
         title: "Error processing files",
-        description: "Please check your file format and try again",
+        description: "Please check the error message below for details",
         variant: "destructive",
       });
     } finally {
@@ -90,6 +123,15 @@ const Index = () => {
             isLoading={isProcessing}
           />
         </div>
+        
+        {/* Error Message */}
+        {error && (
+          <Alert variant="destructive" className="animate-in fade-in-50 duration-300">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error Processing Files</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         
         {/* Action Button */}
         <div className="flex justify-center">

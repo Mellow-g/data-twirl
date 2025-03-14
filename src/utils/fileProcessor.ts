@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -25,18 +24,52 @@ export async function processFile(file: File): Promise<any[]> {
     reader.onload = (e) => {
       try {
         if (!e.target?.result) throw new Error('Failed to read file');
+        
         const workbook = XLSX.read(e.target.result, { type: 'array' });
+        
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new Error('No sheets found in the file');
+        }
+        
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        if (!firstSheet) {
+          throw new Error('Sheet content is empty');
+        }
+        
         const data = XLSX.utils.sheet_to_json(firstSheet, { 
           raw: true,
           defval: ''
         });
+        
+        if (!data || data.length === 0) {
+          throw new Error('No data found in the file');
+        }
+        
+        // Validate that we have expected columns
+        const firstRow = data[0];
+        const hasExpectedColumns = firstRow && (
+          // Check for load report columns
+          ('Consign' in firstRow || '# Ctns' in firstRow || 'Variety' in firstRow || 'Ctn Type' in firstRow) ||
+          // Check for sales report columns
+          ('Supplier Ref' in firstRow || 'Received' in firstRow || 'Sold' in firstRow || 'Total Value' in firstRow)
+        );
+        
+        if (!hasExpectedColumns) {
+          throw new Error('File is missing expected columns. Please check the file format.');
+        }
+        
+        console.log('Processed file successfully, data:', data.slice(0, 2));
         resolve(data);
       } catch (err) {
+        console.error('Error processing file:', err);
         reject(err);
       }
     };
-    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onerror = (err) => {
+      console.error('FileReader error:', err);
+      reject(new Error('Failed to read file'));
+    };
     reader.readAsArrayBuffer(file);
   });
 }
@@ -54,6 +87,11 @@ function isValidSupplierRef(ref: string | undefined): boolean {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
+  // Validate input data
+  if (!Array.isArray(loadData) || !Array.isArray(salesData)) {
+    throw new Error('Invalid data format');
+  }
+  
   // Create a map to store sales data by last 4 digits
   const salesDataMap = new Map();
   
