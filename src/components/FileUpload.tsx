@@ -1,8 +1,7 @@
-
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { FileType } from '@/types';
-import { Upload, FileText } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 interface FileUploadProps {
   onFileSelect: (file: File, type: FileType) => void;
@@ -26,20 +25,8 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
   }, []);
 
   const validateFile = (file: File) => {
-    // More permissive file type validation
-    const validTypes = [
-      'application/vnd.ms-excel', 
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-      'text/csv',
-      'application/octet-stream', // Some Excel files might come with this MIME type
-      'application/vnd.ms-office', // Sometimes used for Office files
-    ];
-    
-    // Also check file extension as MIME types can be unreliable
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    const validExtensions = ['xlsx', 'xls', 'csv'];
-    
-    if (!validTypes.includes(file.type) && !validExtensions.includes(extension || '')) {
+    const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+    if (!validTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
         description: "Please upload an Excel or CSV file",
@@ -47,17 +34,6 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
       });
       return false;
     }
-    
-    // File size check - increase to 20MB
-    if (file.size > 20 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "File size must be less than 20MB",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
     return true;
   };
 
@@ -65,11 +41,6 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
     if (validateFile(file)) {
       setFileName(file.name);
       onFileSelect(file, type);
-      
-      toast({
-        title: "File loaded",
-        description: `${file.name} has been loaded successfully`,
-      });
     }
   }, [onFileSelect, type, toast]);
 
@@ -103,14 +74,10 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
         disabled={isLoading}
       />
       <div className="flex flex-col items-center justify-center space-y-2">
-        {fileName ? (
-          <FileText className="w-8 h-8 text-primary" />
-        ) : (
-          <Upload className="w-8 h-8 text-primary" />
-        )}
+        <Upload className="w-8 h-8 text-primary" />
         <div className="text-sm">
           {fileName ? (
-            <span className="text-primary font-medium">{fileName}</span>
+            <span className="text-primary">{fileName}</span>
           ) : (
             <>
               <span className="font-semibold text-primary">Click to upload</span> or drag and drop
@@ -120,18 +87,8 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          CSV, XLSX, or XLS (max. 20MB)
+          CSV, XLSX, or XLS (max. 10MB)
         </p>
-        {type === 'load' && (
-          <p className="text-xs text-muted-foreground">
-            Should contain consignment numbers and carton quantities
-          </p>
-        )}
-        {type === 'sales' && (
-          <p className="text-xs text-muted-foreground">
-            Should contain supplier references, quantities received/sold, and values
-          </p>
-        )}
       </div>
     </div>
   );
