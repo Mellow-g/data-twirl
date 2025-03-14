@@ -4,10 +4,10 @@ import { FileUpload } from '@/components/FileUpload';
 import { StatsCard } from '@/components/StatsCard';
 import { DataTable } from '@/components/DataTable';
 import { FileData, FileType, MatchedRecord, Statistics } from '@/types';
-import { processFile, matchData, calculateStatistics } from '@/utils/fileProcessor';
+import { processFile, matchData, calculateStatistics, generateExcel } from '@/utils/fileProcessor';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, AlertTriangle } from 'lucide-react';
+import { Building2, AlertTriangle, Download } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Index = () => {
@@ -25,8 +25,16 @@ const Index = () => {
     
     if (type === 'load') {
       setLoadFile(file);
+      toast({
+        title: "Load file selected",
+        description: `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+      });
     } else {
       setSalesFile(file);
+      toast({
+        title: "Sales file selected",
+        description: `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+      });
     }
   };
 
@@ -42,6 +50,8 @@ const Index = () => {
 
     setIsProcessing(true);
     setError(undefined);
+    setMatchedData(undefined);
+    setStatistics(undefined);
     
     try {
       // Process both files
@@ -90,6 +100,16 @@ const Index = () => {
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (matchedData && matchedData.length > 0) {
+      generateExcel(matchedData);
+      toast({
+        title: "Export successful",
+        description: "Data exported to Excel file",
+      });
     }
   };
 
@@ -154,6 +174,15 @@ const Index = () => {
           )}
           {matchedData && (
             <div className="bg-card rounded-lg shadow-lg p-6">
+              <div className="flex justify-end mb-4">
+                <Button
+                  onClick={handleExportExcel}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export to Excel
+                </Button>
+              </div>
               <DataTable data={matchedData} />
             </div>
           )}

@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { FileType } from '@/types';
@@ -34,6 +35,17 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
       });
       return false;
     }
+    
+    // Increased max file size to 20MB
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 20MB",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
     return true;
   };
 
@@ -87,8 +99,18 @@ export const FileUpload = ({ onFileSelect, type, isLoading }: FileUploadProps) =
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          CSV, XLSX, or XLS (max. 10MB)
+          CSV, XLSX, or XLS (max. 20MB)
         </p>
+        {type === 'load' && (
+          <p className="text-xs text-muted-foreground italic">
+            For multi-sheet files, the "Palletstock" sheet will be used
+          </p>
+        )}
+        {type === 'sales' && (
+          <p className="text-xs text-muted-foreground italic">
+            Any column format is supported as long as it contains sales data
+          </p>
+        )}
       </div>
     </div>
   );

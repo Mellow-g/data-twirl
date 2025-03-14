@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -32,29 +31,45 @@ export async function processFile(file: File): Promise<any[]> {
           throw new Error('No sheets found in the file');
         }
         
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        let sheetName = workbook.SheetNames[0]; // Default to first sheet
         
-        if (!firstSheet) {
+        const palletstockSheetIndex = workbook.SheetNames.findIndex(
+          name => name.toLowerCase().includes('palletstock')
+        );
+        
+        if (palletstockSheetIndex !== -1) {
+          sheetName = workbook.SheetNames[palletstockSheetIndex];
+          console.log(`Found Palletstock sheet: ${sheetName}`);
+        }
+        
+        const selectedSheet = workbook.Sheets[sheetName];
+        
+        if (!selectedSheet) {
           throw new Error('Sheet content is empty');
         }
         
-        const data = XLSX.utils.sheet_to_json(firstSheet, { 
+        const data = XLSX.utils.sheet_to_json(selectedSheet, { 
           raw: true,
-          defval: ''
+          defval: '',
+          blankrows: false
         });
         
         if (!data || data.length === 0) {
           throw new Error('No data found in the file');
         }
         
-        // More flexible file type detection - try to infer from data structure rather than strict column names
         const fileType = inferFileType(data);
         
         if (fileType === 'unknown') {
-          throw new Error('Could not determine file type. Please check the file format.');
+          const missingColumns = getMissingColumns(data);
+          if (missingColumns.length > 0) {
+            throw new Error(`Missing critical data: ${missingColumns.join(', ')}. Please check your file format.`);
+          } else {
+            throw new Error('Could not determine file type. Please check that your file contains either load or sales data.');
+          }
         }
         
-        console.log(`Processed file successfully as ${fileType} report, data:`, data.slice(0, 2));
+        console.log(`Processed file successfully as ${fileType} report, data sample:`, data.slice(0, 2));
         resolve(data);
       } catch (err) {
         console.error('Error processing file:', err);
@@ -69,147 +84,167 @@ export async function processFile(file: File): Promise<any[]> {
   });
 }
 
-// More flexible file type inference by examining both headers and data
+function getMissingColumns(data: any[]): string[] {
+  const missingTypes = [];
+  
+  const sampleData = data.slice(0, Math.min(5, data.length));
+  
+  let hasConsignmentData = false;
+  let hasQuantityData = false;
+  
+  let hasReferenceData = false;
+  let hasMonetaryData = false;
+  
+  for (const row of sampleData) {
+    for (const [key, value] of Object.entries(row)) {
+      const strValue = String(value).toLowerCase();
+      
+      if (/^[a-z][0-9][a-z][0-9]{6,}$/i.test(strValue) || 
+          /consign/i.test(key.toLowerCase())) {
+        hasConsignmentData = true;
+      }
+      
+      if (!isNaN(Number(value)) && Number(value) > 0 && Number(value) < 1000 &&
+          (/qty|count|number|ctns|cartons/i.test(key.toLowerCase()))) {
+        hasQuantityData = true;
+      }
+      
+      if (/ref|reference|supplier/i.test(key.toLowerCase()) && 
+          /\d/.test(strValue)) {
+        hasReferenceData = true;
+      }
+      
+      const hasCurrencySymbol = /\$|r|zar|£|\u20AC/.test(strValue);
+      const hasDecimalPattern = /\d+\.\d{2}/.test(strValue);
+      
+      if ((hasCurrencySymbol || hasDecimalPattern) && 
+          /value|amount|price|total/i.test(key.toLowerCase())) {
+        hasMonetaryData = true;
+      }
+    }
+  }
+  
+  const missing = [];
+  
+  if (!hasConsignmentData && !hasReferenceData) {
+    missing.push('Reference/Consignment Numbers');
+  }
+  
+  if (!hasQuantityData) {
+    missing.push('Quantity Data');
+  }
+  
+  if (!hasMonetaryData && !hasQuantityData) {
+    missing.push('Sales Values or Quantity Information');
+  }
+  
+  return missing;
+}
+
 function inferFileType(data: any[]): 'load' | 'sales' | 'unknown' {
   if (data.length === 0) return 'unknown';
   
-  // Check a sample of rows to better determine file type
-  const sampleSize = Math.min(5, data.length);
+  const sampleSize = Math.min(10, data.length);
   const sampleRows = data.slice(0, sampleSize);
   
   let loadScores = 0;
   let salesScores = 0;
   
-  // Examine all columns and their values to detect patterns
+  console.log('File type inference - checking data patterns...');
+  
   for (const row of sampleRows) {
-    // Get all keys in the row
     const allKeys = Object.keys(row);
+    const allValues = Object.values(row).map(v => String(v).toLowerCase());
     
-    // For each key, check if it's potentially a load or sales related column
+    const hasConsignmentPattern = allValues.some(v => /^[a-z][0-9][a-z][0-9]{5,}$/i.test(v));
+    if (hasConsignmentPattern) {
+      loadScores += 5;
+      console.log('Found consignment pattern in values');
+    }
+    
+    const hasMoneyPattern = allValues.some(v => 
+      /^(\$|r|zar|£|\u20AC)?\s*\d+(\.\d{2})?$/.test(v)
+    );
+    if (hasMoneyPattern) {
+      salesScores += 3;
+      console.log('Found monetary pattern in values');
+    }
+    
     for (const key of allKeys) {
       const keyLower = key.toLowerCase();
       const value = String(row[key]).toLowerCase();
       
-      // Check load indicators in column names
-      if (/consign|load|pallet|ctns|carton|box/i.test(keyLower)) loadScores += 2;
-      if (/variety|orchard|grade|brand|ctn type/i.test(keyLower)) loadScores += 2;
+      if (/consign|load|pallet|ctns|carton|box/i.test(keyLower)) {
+        loadScores += 2;
+      }
+      if (/variety|orchard|grade|brand|ctn type/i.test(keyLower)) {
+        loadScores += 2;
+      }
       
-      // Check sales indicators in column names
-      if (/supplier|reference|ref|receipt|invoice/i.test(keyLower)) salesScores += 2;
-      if (/sold|sales|value|amount|delivery/i.test(keyLower)) salesScores += 2;
-      if (/total value|average price/i.test(keyLower)) salesScores += 3;
+      if (!isNaN(Number(value)) && Number(value) > 0 && Number(value) < 1000) {
+        loadScores += 1;
+      }
       
-      // Try to detect if a column might be a consignment number (for load data)
+      if (/supplier|reference|ref|receipt|invoice/i.test(keyLower)) {
+        salesScores += 2;
+      }
+      if (/sold|sales|value|amount|delivery/i.test(keyLower)) {
+        salesScores += 2;
+      }
+      if (/total value|average price/i.test(keyLower)) {
+        salesScores += 3;
+      }
+      
       if (/^[a-z0-9]+c[0-9]+$/i.test(value) || 
           /consign/i.test(keyLower) && /\d{4,}/.test(value)) {
         loadScores += 3;
       }
       
-      // Try to detect if a column might be a supplier reference (for sales data)
       if (/ref/i.test(keyLower) && /\d{4,}/.test(value)) {
         salesScores += 3;
       }
       
-      // Check if there's a value that clearly represents carton quantities (load)
-      if (/ctns|cartons|boxes/i.test(keyLower) && /^\d+$/.test(value)) {
-        loadScores += 3;
-      }
-      
-      // Check if there's a value that clearly represents monetary amounts (sales)
-      if (/\$|r|zar|\d+\.\d{2}/.test(value) && 
-          /value|amount|price|total/i.test(keyLower)) {
-        salesScores += 3;
+      if (/\$|r|zar|\d+\.\d{2}/.test(value)) {
+        salesScores += 2;
       }
     }
-    
-    // Look for data patterns that might indicate a load report
-    if (hasConsignmentPattern(row)) loadScores += 5;
-    
-    // Look for data patterns that might indicate a sales report
-    if (hasMonetaryPattern(row)) salesScores += 5;
   }
   
-  console.log(`File type inference - Load score: ${loadScores}, Sales score: ${salesScores}`);
+  console.log(`File type inference scores - Load score: ${loadScores}, Sales score: ${salesScores}`);
   
   if (loadScores > salesScores && loadScores > 5) return 'load';
   if (salesScores > loadScores && salesScores > 5) return 'sales';
   
-  // If we can't determine clearly, do one more check using the original methods
-  if (checkIfLoadReport(data)) return 'load';
-  if (checkIfSalesReport(data)) return 'sales';
+  if (hasConsignmentPattern(sampleRows)) return 'load';
+  if (hasMonetaryPattern(sampleRows)) return 'sales';
   
   return 'unknown';
 }
 
-// Helper function to detect consignment number patterns
-function hasConsignmentPattern(row: Record<string, any>): boolean {
-  return Object.values(row).some(value => {
-    const strValue = String(value);
-    // Look for patterns like Z1C0801483 which might be consignment numbers
-    return /^[a-z][0-9][a-z][0-9]{6,}$/i.test(strValue);
-  });
+function hasConsignmentPattern(rows: Record<string, any>[]): boolean {
+  for (const row of rows) {
+    for (const value of Object.values(row)) {
+      const strValue = String(value);
+      if (/^[a-z][0-9][a-z][0-9]{6,}$/i.test(strValue)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
-// Helper function to detect monetary value patterns
-function hasMonetaryPattern(row: Record<string, any>): boolean {
-  return Object.values(row).some(value => {
-    const strValue = String(value);
-    // Look for currency patterns (like $100.00, R100.00, 100.00)
-    return /^((\$|R|ZAR|£|\u20AC)\s*\d+(?:\.\d{2})?)$|^\d+\.\d{2}$/.test(strValue);
-  });
+function hasMonetaryPattern(rows: Record<string, any>[]): boolean {
+  for (const row of rows) {
+    for (const value of Object.values(row)) {
+      const strValue = String(value);
+      if (/^((\$|R|ZAR|£|\u20AC)\s*\d+(?:\.\d{2})?)$|^\d+\.\d{2}$/.test(strValue)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
-// Check if the data appears to be a load report by examining the data content
-function checkIfLoadReport(data: any[]): boolean {
-  // Try to find at least one row that has properties we expect in a load report
-  return data.some((row: Record<string, any>) => {
-    // Check for variations of column names that might indicate a load report
-    const hasConsign = Object.keys(row).some(key => 
-      /consign|consignment|load\s*ref/i.test(key)
-    );
-    
-    const hasCartons = Object.keys(row).some(key => 
-      /#?\s*ctns|cartons|boxes/i.test(key)
-    );
-    
-    const hasVariety = Object.keys(row).some(key => 
-      /variety|type|product|produce/i.test(key)
-    );
-    
-    const hasCartonType = Object.keys(row).some(key => 
-      /ctn\s*type|box\s*type|package\s*type/i.test(key)
-    );
-    
-    return hasConsign && hasCartons && (hasVariety || hasCartonType);
-  });
-}
-
-// Check if the data appears to be a sales report by examining the data content
-function checkIfSalesReport(data: any[]): boolean {
-  // Try to find at least one row that has properties we expect in a sales report
-  return data.some((row: Record<string, any>) => {
-    // Check for variations of column names that might indicate a sales report
-    const hasSupplierRef = Object.keys(row).some(key => 
-      /supplier\s*ref|reference|ref\s*no|reference\s*number/i.test(key)
-    );
-    
-    const hasReceived = Object.keys(row).some(key => 
-      /received|rec\s*qty|receipt|delivered/i.test(key)
-    );
-    
-    const hasSold = Object.keys(row).some(key => 
-      /sold|sales\s*qty|qty\s*sold/i.test(key)
-    );
-    
-    const hasTotalValue = Object.keys(row).some(key => 
-      /total\s*value|value|amount|sales\s*value/i.test(key)
-    );
-    
-    return hasSupplierRef && (hasReceived || hasSold || hasTotalValue);
-  });
-}
-
-// Get last 4 digits from a reference string
 function getLast4Digits(ref: string | number): string {
   if (!ref) return '';
   const numbers = ref.toString().replace(/\D/g, '');
@@ -223,16 +258,15 @@ function isValidSupplierRef(ref: string | undefined): boolean {
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  // Validate input data
   if (!Array.isArray(loadData) || !Array.isArray(salesData)) {
     throw new Error('Invalid data format');
   }
   
-  // Create normalized maps for column names - using the improved, more flexible approach
+  console.log('Running flexible column matching...');
+  
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
-  // Create a map to store sales data by last 4 digits
   const salesByLast4 = new Map();
   
   salesDataMap.forEach(sale => {
@@ -248,7 +282,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
   const matchedRecords: MatchedRecord[] = [];
 
-  // Process each load record individually
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
@@ -257,13 +290,11 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     let matchedSale = null;
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
-      // Try to find a matching sale record
       matchedSale = possibleSales.find(sale => 
         Number(sale.received) === cartonsSent
       ) || possibleSales[0];
     }
 
-    // Create record whether matched or not
     const received = matchedSale ? Number(matchedSale.received) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
     const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
@@ -284,14 +315,12 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
-  // Add any unmatched sales records
   salesDataMap.forEach(sale => {
     const supplierRef = sale.supplierRef?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
       const received = Number(sale.received) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
 
-      // Check if this sale has no matching load record
       const hasMatch = matchedRecords.some(record => 
         record.status === 'Matched' && record.supplierRef === supplierRef
       );
@@ -318,54 +347,97 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   return matchedRecords;
 }
 
-// Helper function to normalize load data column names with a more flexible approach
 function normalizeLoadDataColumns(data: any[]): { 
   consign: string; 
   cartons: number; 
   variety: string; 
   cartonType: string 
 }[] {
+  console.log('Normalizing load data columns with flexible approach...');
+  
   return data.map(row => {
     const normalizedRow: Record<string, any> = {};
     const keys = Object.keys(row);
+    const values = Object.values(row);
     
-    // Find the consignment number - check for various patterns
-    const consignKey = keys.find(key => /consign|load\s*ref/i.test(key)) ||
-                        keys.find(key => {
-                          const value = String(row[key]);
-                          return /^[a-z][0-9][a-z][0-9]{6,}$/i.test(value); // Pattern like Z1C0801483
-                        });
+    const numericColumns: [string, number][] = [];
+    keys.forEach(key => {
+      const value = row[key];
+      if (!isNaN(Number(value)) && String(value).trim() !== '') {
+        numericColumns.push([key, Number(value)]);
+      }
+    });
+    
+    let consignKey = keys.find(key => /consign|load\s*ref|reference/i.test(key));
+    
+    if (!consignKey) {
+      consignKey = keys.find(key => {
+        const value = String(row[key]);
+        return /^[a-z][0-9][a-z][0-9]{5,}$/i.test(value) ||
+               /^[a-z0-9]{8,}$/i.test(value) && /[a-z]/i.test(value) && /[0-9]/.test(value);
+      });
+    }
+    
+    if (!consignKey) {
+      consignKey = keys.find(key => /id|no\.|number/i.test(key) && row[key] && String(row[key]).length > 5);
+    }
+    
     normalizedRow.consign = consignKey ? row[consignKey] : '';
     
-    // Find the cartons count
-    const cartonsKey = keys.find(key => /#?\s*ctns|cartons|boxes/i.test(key)) ||
-                        keys.find(key => {
-                          // Look for a numeric column that might represent cartons
-                          const value = row[key];
-                          return !isNaN(Number(value)) && Number(value) > 0 && 
-                                 Number(value) < 1000 && // Cartons typically less than 1000
-                                 /qty|count|number/i.test(key);
-                        });
+    let cartonsKey = keys.find(key => /#?\s*ctns|cartons|boxes|quantity|qty/i.test(key));
+    
+    if (!cartonsKey && numericColumns.length > 0) {
+      const cartonCandidates = numericColumns
+        .filter(([_, value]) => value > 0 && value < 1000 && Number.isInteger(value))
+        .sort(([__, a], [___, b]) => a - b);
+      
+      if (cartonCandidates.length > 0) {
+        cartonsKey = cartonCandidates[0][0];
+      }
+    }
+    
     normalizedRow.cartons = cartonsKey ? Number(row[cartonsKey]) : 0;
     
-    // Find the variety 
-    const varietyKey = keys.find(key => /variety|type|product|produce/i.test(key)) ||
-                        keys.find(key => {
-                          // Look for short text values that might be variety codes
-                          const value = String(row[key]);
-                          return /^[A-Z]{2,4}$/i.test(value) && !/id|no|ref|date/i.test(key);
-                        });
+    let varietyKey = keys.find(key => /variety|type|product|produce|cultivar/i.test(key));
+    
+    if (!varietyKey) {
+      varietyKey = keys.find(key => {
+        const value = String(row[key]);
+        return /^[A-Za-z]{1,4}$/i.test(value.trim()) && 
+               !/id|no|ref|date/i.test(key);
+      });
+    }
+    
+    if (!varietyKey) {
+      varietyKey = keys.find(key => {
+        const value = String(row[key]);
+        return value.length < 10 && 
+               /^[A-Za-z]+$/.test(value.trim()) && 
+               !/date|time|id|no/i.test(key);
+      });
+    }
+    
     normalizedRow.variety = varietyKey ? row[varietyKey] : '';
     
-    // Find the carton type
-    const cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type/i.test(key)) ||
-                          keys.find(key => {
-                            // Look for values that match common carton type patterns
-                            const value = String(row[key]);
-                            return /^C\d+[A-Z]?$/i.test(value) || // Pattern like C15A
-                                   /^[A-Z]\d+[A-Z]?$/i.test(value); // Other package codes
-                          });
-    normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
+    let cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type|pack\s*type/i.test(key));
+    
+    if (!cartonTypeKey) {
+      cartonTypeKey = keys.find(key => {
+        const value = String(row[key]);
+        return /^C\d+[A-Z]?$/i.test(value.trim()) || // Pattern like C15A
+               /^[A-Z]\d+[A-Z]?$/i.test(value.trim());
+      });
+    }
+    
+    if (!cartonTypeKey && varietyKey) {
+      cartonTypeKey = keys.find(key => {
+        return key !== varietyKey && 
+               String(row[key]).length < 10 && 
+               /[A-Z0-9]/i.test(String(row[key]));
+      });
+    }
+    
+    console.log(`Row processed: Consign=${normalizedRow.consign}, Cartons=${normalizedRow.cartons}, Variety=${normalizedRow.variety}, CartonType=${normalizedRow.cartonType}`);
     
     return normalizedRow as { 
       consign: string; 
@@ -376,60 +448,146 @@ function normalizeLoadDataColumns(data: any[]): {
   });
 }
 
-// Helper function to normalize sales data column names with a more flexible approach
 function normalizeSalesDataColumns(data: any[]): { 
   supplierRef: string; 
   received: number; 
   sold: number; 
   totalValue: number 
 }[] {
+  console.log('Normalizing sales data columns with flexible approach...');
+  
   return data.map(row => {
     const normalizedRow: Record<string, any> = {};
     const keys = Object.keys(row);
     
-    // Find the supplier reference - try different patterns
-    const supplierRefKey = keys.find(key => /supplier\s*ref|reference|ref\s*no/i.test(key)) ||
-                           keys.find(key => {
-                             const value = String(row[key]);
-                             // Look for patterns commonly found in reference numbers
-                             return (/^\d{6,}$/.test(value) || // Pure numbers
-                                     /^[a-z][0-9][a-z][0-9]{6,}$/i.test(value)) && // Patterns like Z1C0801483
-                                     /id|no|ref|code/i.test(key);
-                           });
+    const numericColumns: [string, number][] = [];
+    keys.forEach(key => {
+      const value = row[key];
+      const numVal = typeof value === 'string' ? 
+        Number(value.replace(/[^\d.-]/g, '')) : 
+        Number(value);
+      
+      if (!isNaN(numVal) && String(value).trim() !== '') {
+        numericColumns.push([key, numVal]);
+      }
+    });
+    
+    let supplierRefKey = keys.find(key => 
+      /supplier\s*ref|reference|ref\s*no|ref\s*number|supplier/i.test(key)
+    );
+    
+    if (!supplierRefKey) {
+      supplierRefKey = keys.find(key => {
+        const value = String(row[key]);
+        return (/^\d{6,}$/.test(value) || // Pure numbers
+               /^[a-z][0-9][a-z][0-9]{5,}$/i.test(value)) && // Patterns like Z1C0801483
+               !/date|time|value|amount|price/i.test(key);
+      });
+    }
+    
+    if (!supplierRefKey) {
+      supplierRefKey = keys.find(key => 
+        /id|no\.|number/i.test(key) && 
+        row[key] && 
+        String(row[key]).length > 5 && 
+        /\d/.test(String(row[key]))
+      );
+    }
+    
     normalizedRow.supplierRef = supplierRefKey ? row[supplierRefKey] : '';
     
-    // Find the received count 
-    const receivedKey = keys.find(key => /received|rec\s*qty|receipt|delivered/i.test(key)) ||
-                         keys.find(key => {
-                           // Look for numeric columns that might represent received quantities
-                           const value = row[key];
-                           return !isNaN(Number(value)) && Number(value) > 0 && 
-                                  /in|del|rec/i.test(key) && !/price|value|amount/i.test(key);
-                         });
+    let receivedKey = keys.find(key => 
+      /received|rec\s*qty|receipt|delivered|delivery|del\s*qty/i.test(key)
+    );
+    
+    if (!receivedKey && numericColumns.length > 0) {
+      const receivedCandidates = numericColumns
+        .filter(([key, value]) => 
+          value > 0 && 
+          Number.isInteger(value) && 
+          !/value|amount|price/i.test(key)
+        )
+        .sort(([__, a], [___, b]) => b - a);
+      
+      if (receivedCandidates.length > 0) {
+        receivedKey = receivedCandidates[0][0];
+      }
+    }
+    
     normalizedRow.received = receivedKey ? Number(row[receivedKey]) : 0;
     
-    // Find the sold count 
-    const soldKey = keys.find(key => /sold|sales\s*qty|qty\s*sold/i.test(key)) ||
-                     keys.find(key => {
-                       // Look for numeric columns that might represent sold quantities
-                       const value = row[key];
-                       return !isNaN(Number(value)) && Number(value) > 0 && 
-                              /out|sold|sales/i.test(key) && !/price|value|amount/i.test(key);
-                     });
+    let soldKey = keys.find(key => 
+      /sold|sales\s*qty|qty\s*sold|sell|sold\s*qty/i.test(key)
+    );
+    
+    if (!soldKey && numericColumns.length > 0 && receivedKey) {
+      const receivedValue = Number(row[receivedKey]);
+      
+      const soldCandidates = numericColumns
+        .filter(([key, value]) => 
+          key !== receivedKey && 
+          value > 0 && 
+          value <= receivedValue && 
+          Number.isInteger(value) && 
+          !/value|amount|price/i.test(key)
+        );
+      
+      if (soldCandidates.length > 0) {
+        soldKey = soldCandidates[0][0];
+      }
+    }
+    
+    if (!soldKey && receivedKey) {
+      const receivedValue = Number(row[receivedKey]);
+      
+      soldKey = keys.find(key => {
+        const value = Number(row[key]);
+        return key !== receivedKey && 
+               !isNaN(value) && 
+               value > 0 && 
+               value < receivedValue && 
+               !/value|amount|price/i.test(key);
+      });
+    }
+    
     normalizedRow.sold = soldKey ? Number(row[soldKey]) : 0;
     
-    // Find the total value 
-    const totalValueKey = keys.find(key => /total\s*value|value|amount|sales\s*value/i.test(key)) ||
-                           keys.find(key => {
-                             // Look for monetary values
-                             const value = String(row[key]);
-                             return (/^\$|R|ZAR/.test(value) || // Currency symbols
-                                    /\.\d{2}$/.test(value)) && // Decimal points common in currency
-                                    /total|sum|price|revenue|income/i.test(key);
-                           });
-    normalizedRow.totalValue = totalValueKey ? 
-      // Clean the value, removing currency symbols and converting to number
-      Number(String(row[totalValueKey]).replace(/[^\d.-]/g, '')) : 0;
+    let totalValueKey = keys.find(key => 
+      /total\s*value|value|amount|sales\s*value|gross\s*value|total|revenue/i.test(key)
+    );
+    
+    if (!totalValueKey) {
+      totalValueKey = keys.find(key => {
+        const value = String(row[key]);
+        return (/^\$|R|ZAR|£|\u20AC/.test(value) || // Has currency symbol
+               /\.\d{2}$/.test(value)) && // Ends with .XX (cents)
+               !/date|time/i.test(key);
+      });
+    }
+    
+    if (!totalValueKey) {
+      const valueCandidates = numericColumns
+        .filter(([__, value]) => value > 0 && !Number.isInteger(value))
+        .sort(([__, a], [___, b]) => b - a);
+      
+      if (valueCandidates.length > 0) {
+        totalValueKey = valueCandidates[0][0];
+      }
+    }
+    
+    let totalValue = 0;
+    if (totalValueKey) {
+      const rawValue = row[totalValueKey];
+      if (typeof rawValue === 'string') {
+        totalValue = Number(rawValue.replace(/[^\d.-]/g, ''));
+      } else {
+        totalValue = Number(rawValue);
+      }
+    }
+    
+    normalizedRow.totalValue = isNaN(totalValue) ? 0 : totalValue;
+    
+    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Received=${normalizedRow.received}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}`);
     
     return normalizedRow as { 
       supplierRef: string; 
