@@ -420,13 +420,20 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.variety = varietyKey ? row[varietyKey] : '';
     
-    let cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type|pack\s*type/i.test(key));
+    // Improved carton type detection
+    let cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type|pack\s*type|pallet\s*type/i.test(key));
+    
+    if (!cartonTypeKey) {
+      // Look for exact match with "Ctn Type"
+      cartonTypeKey = keys.find(key => key.trim().toLowerCase() === 'ctn type');
+    }
     
     if (!cartonTypeKey) {
       cartonTypeKey = keys.find(key => {
         const value = String(row[key]);
         return /^C\d+[A-Z]?$/i.test(value.trim()) || // Pattern like C15A
-               /^[A-Z]\d+[A-Z]?$/i.test(value.trim());
+               /^[A-Z]\d+[A-Z]?$/i.test(value.trim()) ||
+               /^[A-Z]{1,2}\d{1,2}$/i.test(value.trim()); // Pattern like T12
       });
     }
     
@@ -438,7 +445,16 @@ function normalizeLoadDataColumns(data: any[]): {
       });
     }
     
-    console.log(`Row processed: Consign=${normalizedRow.consign}, Cartons=${normalizedRow.cartons}, Variety=${normalizedRow.variety}, CartonType=${normalizedRow.cartonType}`);
+    normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
+    
+    // Add debugging for carton type
+    console.log(`Row processed: Consign=${normalizedRow.consign}, Cartons=${normalizedRow.cartons}, Variety=${normalizedRow.variety}, CartonType=${normalizedRow.cartonType}, Found cartonTypeKey=${cartonTypeKey}`);
+    
+    // Log all available keys to help debugging
+    if (!normalizedRow.cartonType) {
+      console.log('Available keys for carton type detection:', keys);
+      console.log('Row data sample:', JSON.stringify(row));
+    }
     
     return normalizedRow as { 
       consign: string; 
