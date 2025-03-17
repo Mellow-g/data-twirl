@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -291,11 +292,11 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
       matchedSale = possibleSales.find(sale => 
-        Number(sale.received) === cartonsSent
+        Number(sale.sent) === cartonsSent
       ) || possibleSales[0];
     }
 
-    const received = matchedSale ? Number(matchedSale.received) || 0 : 0;
+    const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
     const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
 
@@ -318,7 +319,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   salesDataMap.forEach(sale => {
     const supplierRef = sale.supplierRef?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
-      const received = Number(sale.received) || 0;
+      const received = Number(sale.sent) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
 
       const hasMatch = matchedRecords.some(record => 
@@ -450,7 +451,7 @@ function normalizeLoadDataColumns(data: any[]): {
 
 function normalizeSalesDataColumns(data: any[]): { 
   supplierRef: string; 
-  received: number; 
+  sent: number;
   sold: number; 
   totalValue: number 
 }[] {
@@ -496,11 +497,19 @@ function normalizeSalesDataColumns(data: any[]): {
     
     normalizedRow.supplierRef = supplierRefKey ? row[supplierRefKey] : '';
     
-    let receivedKey = keys.find(key => 
-      /received|rec\s*qty|receipt|delivered|delivery|del\s*qty/i.test(key)
+    // Look for the "sent" field first (this is new)
+    let sentKey = keys.find(key => 
+      /sent|send|cartons\s*sent|ctns\s*sent|sent\s*qty/i.test(key)
     );
     
-    if (!receivedKey && numericColumns.length > 0) {
+    // If no "sent" field found, look for "received" as a fallback
+    if (!sentKey) {
+      sentKey = keys.find(key => 
+        /received|rec\s*qty|receipt|delivered|delivery|del\s*qty/i.test(key)
+      );
+    }
+    
+    if (!sentKey && numericColumns.length > 0) {
       const receivedCandidates = numericColumns
         .filter(([key, value]) => 
           value > 0 && 
@@ -510,24 +519,24 @@ function normalizeSalesDataColumns(data: any[]): {
         .sort(([__, a], [___, b]) => b - a);
       
       if (receivedCandidates.length > 0) {
-        receivedKey = receivedCandidates[0][0];
+        sentKey = receivedCandidates[0][0];
       }
     }
     
-    normalizedRow.received = receivedKey ? Number(row[receivedKey]) : 0;
+    normalizedRow.sent = sentKey ? Number(row[sentKey]) : 0;
     
     let soldKey = keys.find(key => 
       /sold|sales\s*qty|qty\s*sold|sell|sold\s*qty/i.test(key)
     );
     
-    if (!soldKey && numericColumns.length > 0 && receivedKey) {
-      const receivedValue = Number(row[receivedKey]);
+    if (!soldKey && numericColumns.length > 0 && sentKey) {
+      const sentValue = Number(row[sentKey]);
       
       const soldCandidates = numericColumns
         .filter(([key, value]) => 
-          key !== receivedKey && 
+          key !== sentKey && 
           value > 0 && 
-          value <= receivedValue && 
+          value <= sentValue && 
           Number.isInteger(value) && 
           !/value|amount|price/i.test(key)
         );
@@ -537,15 +546,15 @@ function normalizeSalesDataColumns(data: any[]): {
       }
     }
     
-    if (!soldKey && receivedKey) {
-      const receivedValue = Number(row[receivedKey]);
+    if (!soldKey && sentKey) {
+      const sentValue = Number(row[sentKey]);
       
       soldKey = keys.find(key => {
         const value = Number(row[key]);
-        return key !== receivedKey && 
+        return key !== sentKey && 
                !isNaN(value) && 
                value > 0 && 
-               value < receivedValue && 
+               value < sentValue && 
                !/value|amount|price/i.test(key);
       });
     }
@@ -587,11 +596,11 @@ function normalizeSalesDataColumns(data: any[]): {
     
     normalizedRow.totalValue = isNaN(totalValue) ? 0 : totalValue;
     
-    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Received=${normalizedRow.received}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}`);
+    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Sent=${normalizedRow.sent}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}`);
     
     return normalizedRow as { 
       supplierRef: string; 
-      received: number; 
+      sent: number; 
       sold: number; 
       totalValue: number 
     };
