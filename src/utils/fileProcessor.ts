@@ -268,6 +268,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
+  // Create a map of sales data keyed by the last 4 digits of supplier reference
   const salesByLast4 = new Map();
   
   salesDataMap.forEach(sale => {
@@ -281,7 +282,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
+  // Process load data first
   const matchedRecords: MatchedRecord[] = [];
+  const processedSales = new Set(); // Track which sales have been matched
 
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
@@ -291,9 +294,20 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     let matchedSale = null;
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
+      // Try to find best match based on carton count
       matchedSale = possibleSales.find(sale => 
         Number(sale.sent) === cartonsSent
-      ) || possibleSales[0];
+      );
+      
+      // If no exact match found, use the first one if any exist
+      if (!matchedSale && possibleSales.length > 0) {
+        matchedSale = possibleSales[0];
+      }
+      
+      // Mark this sale as processed if we found a match
+      if (matchedSale) {
+        processedSales.add(matchedSale);
+      }
     }
 
     const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
@@ -316,32 +330,32 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
+  // Now process any unmatched sales data
   salesDataMap.forEach(sale => {
+    // Skip if this sale was already matched to a load
+    if (processedSales.has(sale)) {
+      return;
+    }
+    
     const supplierRef = sale.supplierRef?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
       const received = Number(sale.sent) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
 
-      const hasMatch = matchedRecords.some(record => 
-        record.status === 'Matched' && record.supplierRef === supplierRef
-      );
-
-      if (!hasMatch) {
-        matchedRecords.push({
-          consignNumber: '',
-          supplierRef: supplierRef,
-          status: 'Unmatched',
-          variety: '',
-          cartonType: '',
-          cartonsSent: 0,
-          received,
-          deviationSentReceived: -received,
-          soldOnMarket,
-          deviationReceivedSold: received - soldOnMarket,
-          totalValue: Number(sale.totalValue) || 0,
-          reconciled: false
-        });
-      }
+      matchedRecords.push({
+        consignNumber: '',
+        supplierRef: supplierRef,
+        status: 'Unmatched',
+        variety: '',
+        cartonType: '',
+        cartonsSent: 0,
+        received,
+        deviationSentReceived: -received,
+        soldOnMarket,
+        deviationReceivedSold: received - soldOnMarket,
+        totalValue: Number(sale.totalValue) || 0,
+        reconciled: false
+      });
     }
   });
 
