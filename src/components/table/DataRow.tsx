@@ -23,7 +23,8 @@ export const DataRow = ({
 }: DataRowProps) => {
   const [expanded, setExpanded] = useState(false);
   
-  const toggleExpand = () => {
+  const toggleExpand = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     setExpanded(!expanded);
   };
   
@@ -40,6 +41,7 @@ export const DataRow = ({
               onClick={toggleExpand}
               className="mr-2 p-1 rounded-full hover:bg-primary/10 transition-colors"
               aria-label={expanded ? "Collapse row" : "Expand row"}
+              type="button"
             >
               {expanded ? 
                 <ChevronDown className="h-4 w-4 text-primary" /> : 
