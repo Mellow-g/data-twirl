@@ -33,12 +33,12 @@ export const DataTable = ({ data }: DataTableProps) => {
     groupRecords(data), [data]
   );
 
-  // Filter and sort the records
+  // Filter and sort the records - passing groupRecords as a value, not a function
   const filteredAndSortedData = useMemo(() => 
     filterAndSortData(
       data, 
       groupedRecords, 
-      groupRecords, 
+      groupRecords, // This was incorrectly being called as a function
       statusFilter, 
       varietyFilter, 
       reconciledFilter

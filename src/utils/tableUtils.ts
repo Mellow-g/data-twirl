@@ -65,13 +65,13 @@ export const groupRecords = (data: MatchedRecord[]): Array<{ record: MatchedReco
 export const filterAndSortData = (
   data: MatchedRecord[],
   groupedRecords: Array<{ record: MatchedRecord, children: MatchedRecord[] }>,
-  groupRecords: boolean,
+  shouldGroupRecords: boolean, // Changed parameter name for clarity
   statusFilter: string,
   varietyFilter: string,
   reconciledFilter: string
 ): Array<{ record: MatchedRecord, children: MatchedRecord[] }> => {
   // If not grouping, use the original filtering logic
-  if (!groupRecords) {
+  if (!shouldGroupRecords) {
     const filtered = data.filter(record => {
       const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
