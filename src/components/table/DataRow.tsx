@@ -1,6 +1,6 @@
 
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Check, X } from "lucide-react";
+import { Check, X, Split } from "lucide-react";
 import { MatchedRecord } from "@/types";
 import { formatNumber } from "@/utils/fileProcessor";
 import { ColumnClasses } from "./types";
@@ -21,7 +21,9 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       <TableCell className={columnClasses.status}>
         <span
           className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
-            ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 'bg-destructive/20 text-destructive'}`
+            ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 
+              record.status === 'Split Transaction' ? 'bg-blue-500/20 text-blue-500' : 
+              'bg-destructive/20 text-destructive'}`
           }
         >
           {record.status}
