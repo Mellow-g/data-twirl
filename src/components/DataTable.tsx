@@ -1,17 +1,12 @@
 
+import { Table, TableBody } from "@/components/ui/table";
 import { MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
 import { useState, useMemo } from "react";
 import { FilterControls } from "./table/FilterControls";
-import { TableContainer } from "./table/TableContainer";
+import { TableHeader } from "./table/TableHeader";
+import { DataRow } from "./table/DataRow";
 import { ColumnClasses } from "./table/types";
-import { Toggle } from "./ui/toggle";
-import { ListFilter } from "lucide-react";
-import { 
-  extractUniqueVarieties, 
-  groupRecords, 
-  filterAndSortData 
-} from "@/utils/tableUtils";
 
 interface DataTableProps {
   data: MatchedRecord[];
@@ -21,33 +16,70 @@ export const DataTable = ({ data }: DataTableProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [varietyFilter, setVarietyFilter] = useState<string>("all");
   const [reconciledFilter, setReconciledFilter] = useState<string>("all");
-  const [shouldGroupRecords, setShouldGroupRecords] = useState<boolean>(true);
 
-  // Extract unique varieties
-  const varieties = useMemo(() => 
-    extractUniqueVarieties(data), [data]
-  );
+  const varieties = useMemo(() => {
+    const uniqueVarieties = new Set(data.map(record => record.variety));
+    return Array.from(uniqueVarieties).filter(Boolean);
+  }, [data]);
 
-  // Group records by Consignment Number and Supplier Reference
-  const groupedRecords = useMemo(() => 
-    groupRecords(data), [data]
-  );
+  const filteredAndSortedData = useMemo(() => {
+    const filtered = data.filter(record => {
+      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
+      const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
+      const matchesReconciled = reconciledFilter === "all" || 
+        (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
+      return matchesStatus && matchesVariety && matchesReconciled;
+    });
 
-  // Filter and sort the records
-  const filteredAndSortedData = useMemo(() => 
-    filterAndSortData(
-      data, 
-      groupedRecords, 
-      shouldGroupRecords, 
-      statusFilter, 
-      varietyFilter, 
-      reconciledFilter
-    ),
-    [data, groupedRecords, shouldGroupRecords, statusFilter, varietyFilter, reconciledFilter]
-  );
+    // Create groups for sorting
+    const groups: MatchedRecord[][] = [];
+    const processedRecords = new Set<MatchedRecord>();
+
+    // First pass: group by consignment number
+    filtered.forEach(record => {
+      if (processedRecords.has(record)) return;
+      
+      const group = filtered.filter(r => 
+        (record.consignNumber && r.consignNumber === record.consignNumber) ||
+        (record.supplierRef && r.supplierRef === record.supplierRef)
+      );
+      
+      if (group.length > 0) {
+        groups.push(group);
+        group.forEach(r => processedRecords.add(r));
+      }
+    });
+
+    // Add any remaining records
+    const remainingRecords = filtered.filter(record => !processedRecords.has(record));
+    if (remainingRecords.length > 0) {
+      groups.push(remainingRecords);
+    }
+
+    // Sort groups by reconciliation status, then flatten
+    const sortedGroups = groups.sort((a, b) => {
+      const aReconciled = a.some(r => r.reconciled);
+      const bReconciled = b.some(r => r.reconciled);
+      if (aReconciled && !bReconciled) return -1;
+      if (!aReconciled && bReconciled) return 1;
+      return 0;
+    });
+
+    return sortedGroups.flat();
+  }, [data, statusFilter, varietyFilter, reconciledFilter]);
 
   const handleExport = () => {
-    generateExcel(filteredAndSortedData.map(({ record }) => record));
+    generateExcel(filteredAndSortedData);
+  };
+
+  const getRowClassName = (record: MatchedRecord) => {
+    if (!record.consignNumber && !record.supplierRef) {
+      return 'bg-orange-900/30 hover:bg-orange-900/40';
+    }
+    if (record.status === 'Unmatched') {
+      return 'bg-destructive/10 hover:bg-destructive/20';
+    }
+    return 'hover:bg-card/50';
   };
 
   const columnClasses: ColumnClasses = {
@@ -64,36 +96,39 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <FilterControls
-          statusFilter={statusFilter}
-          varietyFilter={varietyFilter}
-          reconciledFilter={reconciledFilter}
-          varieties={varieties}
-          onStatusChange={setStatusFilter}
-          onVarietyChange={setVarietyFilter}
-          onReconciledChange={setReconciledFilter}
-          onExport={handleExport}
-        />
-        
-        <div className="flex items-center gap-2">
-          <Toggle
-            pressed={shouldGroupRecords}
-            onPressedChange={setShouldGroupRecords}
-            aria-label="Toggle grouped view"
-            className="data-[state=on]:bg-primary/20"
-          >
-            <ListFilter className="h-4 w-4 mr-1" />
-            Group Records
-          </Toggle>
+      <FilterControls
+        statusFilter={statusFilter}
+        varietyFilter={varietyFilter}
+        reconciledFilter={reconciledFilter}
+        varieties={varieties}
+        onStatusChange={setStatusFilter}
+        onVarietyChange={setVarietyFilter}
+        onReconciledChange={setReconciledFilter}
+        onExport={handleExport}
+      />
+
+      <div className="rounded-md border border-primary/20 bg-[#1A1F2C]">
+        <div className="border-b border-primary/20 sticky top-0 z-10">
+          <Table>
+            <TableHeader columnClasses={columnClasses} />
+          </Table>
+        </div>
+
+        <div className="max-h-[calc(70vh-4rem)] overflow-auto">
+          <Table>
+            <TableBody>
+              {filteredAndSortedData.map((record, index) => (
+                <DataRow
+                  key={index}
+                  record={record}
+                  columnClasses={columnClasses}
+                  getRowClassName={getRowClassName}
+                />
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
-
-      <TableContainer 
-        filteredData={filteredAndSortedData}
-        columnClasses={columnClasses}
-        groupRecords={shouldGroupRecords}
-      />
     </div>
   );
 };

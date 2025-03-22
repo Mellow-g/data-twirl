@@ -246,48 +246,127 @@ function hasMonetaryPattern(rows: Record<string, any>[]): boolean {
   return false;
 }
 
-function extractMatchingKey(record: any): string {
-  let consignNumber = '';
-  let supplierRef = '';
-  
-  // For load data record
-  if (record.consign) {
-    consignNumber = cleanReferenceString(record.consign);
-  }
-  
-  // For sales data record
-  if (record.supplierRef) {
-    supplierRef = cleanReferenceString(record.supplierRef);
-  }
-  
-  // Create a matching key from the last 6-8 digits of either reference
-  let key = '';
-  if (consignNumber) {
-    key = extractDigits(consignNumber);
-  } else if (supplierRef) {
-    key = extractDigits(supplierRef);
-  }
-  
-  return key;
-}
-
-function cleanReferenceString(ref: string): string {
+function getLast4Digits(ref: string | number): string {
   if (!ref) return '';
-  return ref.toString().replace(/\s+/g, '').trim();
+  const numbers = ref.toString().replace(/\D/g, '');
+  return numbers.slice(-4);
 }
 
-function extractDigits(str: string): string {
-  const digits = str.replace(/\D/g, '');
-  // Return last 8 digits, or all if less than 8
-  return digits.slice(-8);
+function isValidSupplierRef(ref: string | undefined): boolean {
+  if (!ref) return false;
+  if (ref.includes('DESTINATION:') || ref.includes('(Pre)')) return false;
+  return /\d/.test(ref);
+}
+
+export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
+  if (!Array.isArray(loadData) || !Array.isArray(salesData)) {
+    throw new Error('Invalid data format');
+  }
+  
+  console.log('Running flexible column matching...');
+  
+  const loadDataMap = normalizeLoadDataColumns(loadData);
+  const salesDataMap = normalizeSalesDataColumns(salesData);
+  
+  // Create a map of sales data keyed by the last 4 digits of supplier reference
+  const salesByLast4 = new Map();
+  
+  salesDataMap.forEach(sale => {
+    const supplierRef = sale.supplierRef?.toString().trim();
+    if (isValidSupplierRef(supplierRef)) {
+      const last4 = getLast4Digits(supplierRef);
+      if (!salesByLast4.has(last4)) {
+        salesByLast4.set(last4, []);
+      }
+      salesByLast4.get(last4).push(sale);
+    }
+  });
+
+  // Process load data first
+  const matchedRecords: MatchedRecord[] = [];
+  const processedSales = new Set(); // Track which sales have been matched
+
+  loadDataMap.forEach(load => {
+    const consignNumber = load.consign?.toString() || '';
+    const last4 = getLast4Digits(consignNumber);
+    const cartonsSent = Number(load.cartons) || 0;
+
+    let matchedSale = null;
+    if (last4) {
+      const possibleSales = salesByLast4.get(last4) || [];
+      // Try to find best match based on carton count
+      matchedSale = possibleSales.find(sale => 
+        Number(sale.sent) === cartonsSent
+      );
+      
+      // If no exact match found, use the first one if any exist
+      if (!matchedSale && possibleSales.length > 0) {
+        matchedSale = possibleSales[0];
+      }
+      
+      // Mark this sale as processed if we found a match
+      if (matchedSale) {
+        processedSales.add(matchedSale);
+      }
+    }
+
+    const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
+    const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
+    const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
+
+    matchedRecords.push({
+      consignNumber,
+      supplierRef: matchedSale ? matchedSale.supplierRef || '' : '',
+      status: matchedSale ? 'Matched' : 'Unmatched',
+      variety: load.variety || '',
+      cartonType: load.cartonType || '',
+      cartonsSent,
+      received,
+      deviationSentReceived: cartonsSent - received,
+      soldOnMarket,
+      deviationReceivedSold: received - soldOnMarket,
+      totalValue,
+      reconciled: cartonsSent === received && received === soldOnMarket
+    });
+  });
+
+  // Now process any unmatched sales data
+  salesDataMap.forEach(sale => {
+    // Skip if this sale was already matched to a load
+    if (processedSales.has(sale)) {
+      return;
+    }
+    
+    const supplierRef = sale.supplierRef?.toString().trim();
+    if (isValidSupplierRef(supplierRef)) {
+      const received = Number(sale.sent) || 0;
+      const soldOnMarket = Number(sale.sold) || 0;
+
+      matchedRecords.push({
+        consignNumber: '',
+        supplierRef: supplierRef,
+        status: 'Unmatched',
+        variety: '',
+        cartonType: '',
+        cartonsSent: 0,
+        received,
+        deviationSentReceived: -received,
+        soldOnMarket,
+        deviationReceivedSold: received - soldOnMarket,
+        totalValue: Number(sale.totalValue) || 0,
+        reconciled: false
+      });
+    }
+  });
+
+  return matchedRecords;
 }
 
 function normalizeLoadDataColumns(data: any[]): { 
   consign: string; 
   cartons: number; 
   variety: string; 
-  cartonType: string;
-  key: string;
+  cartonType: string 
 }[] {
   console.log('Normalizing load data columns with flexible approach...');
   
@@ -382,15 +461,20 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
     
-    // Generate a matching key
-    normalizedRow.key = extractMatchingKey(normalizedRow);
+    // Add debugging for carton type
+    console.log(`Row processed: Consign=${normalizedRow.consign}, Cartons=${normalizedRow.cartons}, Variety=${normalizedRow.variety}, CartonType=${normalizedRow.cartonType}, Found cartonTypeKey=${cartonTypeKey}`);
+    
+    // Log all available keys to help debugging
+    if (!normalizedRow.cartonType) {
+      console.log('Available keys for carton type detection:', keys);
+      console.log('Row data sample:', JSON.stringify(row));
+    }
     
     return normalizedRow as { 
       consign: string; 
       cartons: number; 
       variety: string; 
-      cartonType: string;
-      key: string;
+      cartonType: string 
     };
   });
 }
@@ -399,8 +483,7 @@ function normalizeSalesDataColumns(data: any[]): {
   supplierRef: string; 
   sent: number;
   sold: number; 
-  totalValue: number;
-  key: string;
+  totalValue: number 
 }[] {
   console.log('Normalizing sales data columns with flexible approach...');
   
@@ -444,7 +527,7 @@ function normalizeSalesDataColumns(data: any[]): {
     
     normalizedRow.supplierRef = supplierRefKey ? row[supplierRefKey] : '';
     
-    // Look for the "sent" field first
+    // Look for the "sent" field first (this is new)
     let sentKey = keys.find(key => 
       /sent|send|cartons\s*sent|ctns\s*sent|sent\s*qty/i.test(key)
     );
@@ -543,165 +626,15 @@ function normalizeSalesDataColumns(data: any[]): {
     
     normalizedRow.totalValue = isNaN(totalValue) ? 0 : totalValue;
     
-    // Generate a matching key
-    normalizedRow.key = extractMatchingKey(normalizedRow);
+    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Sent=${normalizedRow.sent}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}`);
     
     return normalizedRow as { 
       supplierRef: string; 
       sent: number; 
       sold: number; 
-      totalValue: number;
-      key: string;
+      totalValue: number 
     };
   });
-}
-
-// New function to group records by key
-function groupRecordsByKey<T extends { key: string }>(records: T[]): Record<string, T[]> {
-  return records.reduce((groups, record) => {
-    if (!record.key) return groups;
-    
-    if (!groups[record.key]) {
-      groups[record.key] = [];
-    }
-    groups[record.key].push(record);
-    return groups;
-  }, {} as Record<string, T[]>);
-}
-
-// New function to sum grouped values
-function sumGroupValues<T>(
-  groups: Record<string, T[]>, 
-  valueFields: Array<keyof T & string>
-): Array<{key: string, records: T[], sums: Record<string, number>}> {
-  return Object.entries(groups).map(([key, records]) => {
-    const sums = valueFields.reduce((acc, field) => {
-      acc[field] = records.reduce((sum, record) => {
-        const value = Number(record[field]) || 0;
-        return sum + value;
-      }, 0);
-      return acc;
-    }, {} as Record<string, number>);
-    
-    return { key, records, sums };
-  });
-}
-
-// Updated match function that handles grouped records
-export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
-  if (!Array.isArray(loadData) || !Array.isArray(salesData)) {
-    throw new Error('Invalid data format');
-  }
-  
-  console.log('Running group-based matching...');
-  
-  // Step 1: Normalize both datasets
-  const loadDataNormalized = normalizeLoadDataColumns(loadData);
-  const salesDataNormalized = normalizeSalesDataColumns(salesData);
-  
-  console.log('Load data sample after normalization:', loadDataNormalized.slice(0, 2));
-  console.log('Sales data sample after normalization:', salesDataNormalized.slice(0, 2));
-  
-  // Step 2: Group records by matching key
-  const loadGroups = groupRecordsByKey(loadDataNormalized);
-  const salesGroups = groupRecordsByKey(salesDataNormalized);
-  
-  console.log('Load groups created:', Object.keys(loadGroups).length);
-  console.log('Sales groups created:', Object.keys(salesGroups).length);
-  
-  // Step 3: Sum values within groups
-  const loadGroupSums = sumGroupValues(loadGroups, ['cartons']);
-  const salesGroupSums = sumGroupValues(salesGroups, ['sent', 'sold', 'totalValue']);
-  
-  console.log('Load group sums sample:', loadGroupSums.slice(0, 2));
-  console.log('Sales group sums sample:', salesGroupSums.slice(0, 2));
-  
-  // Step 4: Match between groups and create reconciliation records
-  const matchedRecords: MatchedRecord[] = [];
-  
-  // Process all load groups first
-  loadGroupSums.forEach(loadGroup => {
-    const salesGroup = salesGroupSums.find(sGroup => sGroup.key === loadGroup.key);
-    
-    if (salesGroup) {
-      // We have a match between load and sales groups
-      const cartonsSent = loadGroup.sums.cartons || 0;
-      const received = salesGroup.sums.sent || 0;
-      const soldOnMarket = salesGroup.sums.sold || 0;
-      const totalValue = salesGroup.sums.totalValue || 0;
-      
-      // For grouped records, use the first record's metadata
-      const firstLoadRecord = loadGroup.records[0];
-      const firstSalesRecord = salesGroup.records[0];
-      
-      matchedRecords.push({
-        consignNumber: firstLoadRecord.consign || '',
-        supplierRef: firstSalesRecord.supplierRef || '',
-        status: 'Matched',
-        variety: firstLoadRecord.variety || '',
-        cartonType: firstLoadRecord.cartonType || '',
-        cartonsSent,
-        received,
-        deviationSentReceived: cartonsSent - received,
-        soldOnMarket,
-        deviationReceivedSold: received - soldOnMarket,
-        totalValue,
-        reconciled: Math.abs(cartonsSent - received) < 1 && Math.abs(received - soldOnMarket) < 1
-      });
-    } else {
-      // No match found for this load group
-      const cartonsSent = loadGroup.sums.cartons || 0;
-      const firstLoadRecord = loadGroup.records[0];
-      
-      matchedRecords.push({
-        consignNumber: firstLoadRecord.consign || '',
-        supplierRef: '',
-        status: 'Unmatched',
-        variety: firstLoadRecord.variety || '',
-        cartonType: firstLoadRecord.cartonType || '',
-        cartonsSent,
-        received: 0,
-        deviationSentReceived: cartonsSent,
-        soldOnMarket: 0,
-        deviationReceivedSold: 0,
-        totalValue: 0,
-        reconciled: false
-      });
-    }
-  });
-  
-  // Now process any sales groups that weren't matched with load groups
-  salesGroupSums.forEach(salesGroup => {
-    const alreadyMatched = matchedRecords.some(record => 
-      record.status === 'Matched' && 
-      extractMatchingKey({ consign: record.consignNumber, supplierRef: record.supplierRef }) === salesGroup.key
-    );
-    
-    if (!alreadyMatched) {
-      const received = salesGroup.sums.sent || 0;
-      const soldOnMarket = salesGroup.sums.sold || 0;
-      const totalValue = salesGroup.sums.totalValue || 0;
-      const firstSalesRecord = salesGroup.records[0];
-      
-      matchedRecords.push({
-        consignNumber: '',
-        supplierRef: firstSalesRecord.supplierRef || '',
-        status: 'Unmatched',
-        variety: '',
-        cartonType: '',
-        cartonsSent: 0,
-        received,
-        deviationSentReceived: -received,
-        soldOnMarket,
-        deviationReceivedSold: received - soldOnMarket,
-        totalValue,
-        reconciled: false
-      });
-    }
-  });
-  
-  console.log(`Matching complete. Created ${matchedRecords.length} reconciliation records`);
-  return matchedRecords;
 }
 
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
@@ -749,3 +682,4 @@ export function generateExcel(data: MatchedRecord[]): void {
   XLSX.utils.book_append_sheet(wb, ws, 'Matching Report');
   XLSX.writeFile(wb, 'matching_report.xlsx');
 }
+
