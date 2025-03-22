@@ -21,7 +21,7 @@ export const DataTable = ({ data }: DataTableProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [varietyFilter, setVarietyFilter] = useState<string>("all");
   const [reconciledFilter, setReconciledFilter] = useState<string>("all");
-  const [groupRecords, setGroupRecords] = useState<boolean>(true);
+  const [shouldGroupRecords, setShouldGroupRecords] = useState<boolean>(true);
 
   // Extract unique varieties
   const varieties = useMemo(() => 
@@ -33,17 +33,17 @@ export const DataTable = ({ data }: DataTableProps) => {
     groupRecords(data), [data]
   );
 
-  // Filter and sort the records - passing groupRecords as a value, not a function
+  // Filter and sort the records
   const filteredAndSortedData = useMemo(() => 
     filterAndSortData(
       data, 
       groupedRecords, 
-      groupRecords, // This was incorrectly being called as a function
+      shouldGroupRecords, 
       statusFilter, 
       varietyFilter, 
       reconciledFilter
     ),
-    [data, groupedRecords, groupRecords, statusFilter, varietyFilter, reconciledFilter]
+    [data, groupedRecords, shouldGroupRecords, statusFilter, varietyFilter, reconciledFilter]
   );
 
   const handleExport = () => {
@@ -78,8 +78,8 @@ export const DataTable = ({ data }: DataTableProps) => {
         
         <div className="flex items-center gap-2">
           <Toggle
-            pressed={groupRecords}
-            onPressedChange={setGroupRecords}
+            pressed={shouldGroupRecords}
+            onPressedChange={setShouldGroupRecords}
             aria-label="Toggle grouped view"
             className="data-[state=on]:bg-primary/20"
           >
@@ -92,7 +92,7 @@ export const DataTable = ({ data }: DataTableProps) => {
       <TableContainer 
         filteredData={filteredAndSortedData}
         columnClasses={columnClasses}
-        groupRecords={groupRecords}
+        groupRecords={shouldGroupRecords}
       />
     </div>
   );
