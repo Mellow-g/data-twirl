@@ -4,6 +4,7 @@ import { Check, X, Split } from "lucide-react";
 import { MatchedRecord } from "@/types";
 import { formatNumber } from "@/utils/fileProcessor";
 import { ColumnClasses } from "./types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DataRowProps {
   record: MatchedRecord;
@@ -21,7 +22,16 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       <TableCell className={columnClasses.status}>
         <div className="flex items-center justify-center gap-2">
           {record.splitTransaction && (
-            <Split className="h-4 w-4 text-blue-500" title="Split Transaction" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Split className="h-4 w-4 text-blue-500" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Split Transaction</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           <span
             className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
