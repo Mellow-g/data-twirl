@@ -1,4 +1,3 @@
-
 import { Table, TableBody } from "@/components/ui/table";
 import { MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
@@ -24,7 +23,11 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   const filteredAndSortedData = useMemo(() => {
     const filtered = data.filter(record => {
-      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
+      const matchesStatus = 
+        statusFilter === "all" || 
+        (statusFilter === "matched" && (record.status === "Matched" || record.status === "Split")) ||
+        (statusFilter === "unmatched" && record.status === "Unmatched");
+      
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       const matchesReconciled = reconciledFilter === "all" || 
         (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
@@ -35,7 +38,19 @@ export const DataTable = ({ data }: DataTableProps) => {
     const groups: MatchedRecord[][] = [];
     const processedRecords = new Set<MatchedRecord>();
 
-    // First pass: group by consignment number
+    // First pass: group by split transactions
+    const splitGroups = new Map<string, MatchedRecord[]>();
+    filtered.forEach(record => {
+      if (record.splitGroupId && !processedRecords.has(record)) {
+        const group = filtered.filter(r => r.splitGroupId === record.splitGroupId);
+        if (group.length > 0) {
+          groups.push(group);
+          group.forEach(r => processedRecords.add(r));
+        }
+      }
+    });
+
+    // Second pass: group by consignment number
     filtered.forEach(record => {
       if (processedRecords.has(record)) return;
       
@@ -73,6 +88,9 @@ export const DataTable = ({ data }: DataTableProps) => {
   };
 
   const getRowClassName = (record: MatchedRecord) => {
+    if (record.isSplitTransaction) {
+      return 'bg-blue-900/20 hover:bg-blue-900/30';
+    }
     if (!record.consignNumber && !record.supplierRef) {
       return 'bg-orange-900/30 hover:bg-orange-900/40';
     }

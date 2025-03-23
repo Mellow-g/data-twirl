@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { StatsCard } from '@/components/StatsCard';
@@ -20,7 +19,6 @@ const Index = () => {
   const { toast } = useToast();
 
   const handleFileSelect = (file: File, type: FileType) => {
-    // Clear previous errors when a new file is selected
     setError(undefined);
     
     if (type === 'load') {
@@ -54,7 +52,6 @@ const Index = () => {
     setStatistics(undefined);
     
     try {
-      // Process both files
       let loadData, salesData;
       
       try {
@@ -71,7 +68,6 @@ const Index = () => {
         throw new Error(`Error processing Sales file: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
       
-      // Match the data
       try {
         const matched = matchData(loadData, salesData);
         const stats = calculateStatistics(matched);
@@ -79,9 +75,11 @@ const Index = () => {
         setMatchedData(matched);
         setStatistics(stats);
         
+        const splitInfo = stats.splitCount > 0 ? `, ${stats.splitCount} split transactions` : '';
+        
         toast({
           title: "Analysis complete",
-          description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records`,
+          description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records${splitInfo}`,
         });
       } catch (err) {
         throw new Error(`Error matching data: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -115,7 +113,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
       <div className="relative bg-black/90 py-16 mb-8">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501854140801-50d01698950b')] bg-cover bg-center opacity-20" />
         <div className="container relative z-10 mx-auto text-center">
@@ -130,7 +127,6 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 space-y-8">
-        {/* File Upload Section */}
         <div className="grid gap-6 md:grid-cols-2 bg-card rounded-lg p-6 shadow-lg">
           <FileUpload
             type="load"
@@ -144,7 +140,6 @@ const Index = () => {
           />
         </div>
         
-        {/* Error Message */}
         {error && (
           <Alert variant="destructive" className="animate-in fade-in-50 duration-300">
             <AlertTriangle className="h-4 w-4" />
@@ -153,7 +148,6 @@ const Index = () => {
           </Alert>
         )}
         
-        {/* Action Button */}
         <div className="flex justify-center">
           <Button
             size="lg"
@@ -165,7 +159,6 @@ const Index = () => {
           </Button>
         </div>
 
-        {/* Results Section */}
         <div className="space-y-8">
           {statistics && (
             <div className="transform hover:scale-[1.01] transition-transform">
