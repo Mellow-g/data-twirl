@@ -262,7 +262,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     throw new Error('Invalid data format');
   }
   
-  console.log('Running flexible column matching with split transaction support...');
+  console.log('Running flexible column matching with improved split transaction support...');
   
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
@@ -314,7 +314,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       // Try to find a direct match by sent quantity
       matchedSale = possibleSales.find(sale => 
         !processedSales.has(sale) && 
-        Number(sale.sent) === totalCartonsSent
+        Math.abs(Number(sale.sent) - totalCartonsSent) <= Math.max(1, totalCartonsSent * 0.01) // 1% tolerance
       );
       
       // If no direct match, take the first available one
@@ -376,7 +376,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
           soldOnMarket,
           deviationReceivedSold: received - soldOnMarket,
           totalValue,
-          reconciled: cartonsSent === received && received === soldOnMarket,
+          reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1,
           isSplitTransaction: false
         });
       }
@@ -711,18 +711,26 @@ function normalizeSalesDataColumns(data: any[]): {
 }
 
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
-  const matchedRecords = data.filter(record => record.status === 'Matched');
-  const splitRecords = data.filter(record => record.status === 'Split');
-  const totalValue = data.reduce((sum, record) => sum + record.totalValue, 0);
+  // Extract just the base records (not children)
+  const baseRecords = data.filter(record => !record.isChild);
+  
+  const matchedRecords = baseRecords.filter(record => record.status === 'Matched');
+  const splitRecords = baseRecords.filter(record => record.status === 'Split');
+  const totalValue = baseRecords.reduce((sum, record) => {
+    if ('isGroupParent' in record && record.isGroupParent) {
+      return sum + record.totalValue;
+    }
+    return sum + (record.proportionalValue || record.totalValue);
+  }, 0);
   
   return {
-    totalRecords: data.length,
+    totalRecords: baseRecords.length,
     matchedCount: matchedRecords.length,
-    unmatchedCount: data.length - matchedRecords.length - splitRecords.length,
+    unmatchedCount: baseRecords.length - matchedRecords.length - splitRecords.length,
     splitCount: splitRecords.length,
     totalValue,
-    averageValue: data.length > 0 ? totalValue / data.length : 0,
-    matchRate: data.length > 0 ? ((matchedRecords.length + splitRecords.length) / data.length) * 100 : 0
+    averageValue: baseRecords.length > 0 ? totalValue / baseRecords.length : 0,
+    matchRate: baseRecords.length > 0 ? ((matchedRecords.length + splitRecords.length) / baseRecords.length) * 100 : 0
   };
 }
 

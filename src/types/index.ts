@@ -21,6 +21,20 @@ export interface MatchedRecord {
   isSplitTransaction: boolean;
   splitGroupId?: string;
   proportionalValue?: number;
+  // New fields for grouping
+  isGroupParent?: boolean;
+  groupId?: string;
+  childRecords?: MatchedRecord[];
+  isChild?: boolean;
+}
+
+export interface GroupedMatchedRecord extends MatchedRecord {
+  isGroupParent: true;
+  childRecords: MatchedRecord[];
+  totalCartonsSent: number;
+  totalReceived: number;
+  totalSoldOnMarket: number;
+  totalValue: number;
 }
 
 export interface Statistics {

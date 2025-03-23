@@ -1,10 +1,12 @@
+
 import { Table, TableBody } from "@/components/ui/table";
-import { MatchedRecord } from "@/types";
+import { GroupedMatchedRecord, MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
 import { useState, useMemo } from "react";
 import { FilterControls } from "./table/FilterControls";
 import { TableHeader } from "./table/TableHeader";
 import { DataRow } from "./table/DataRow";
+import { GroupRow } from "./table/GroupRow";
 import { ColumnClasses } from "./table/types";
 
 interface DataTableProps {
@@ -15,13 +17,18 @@ export const DataTable = ({ data }: DataTableProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [varietyFilter, setVarietyFilter] = useState<string>("all");
   const [reconciledFilter, setReconciledFilter] = useState<string>("all");
+  const [showGrouped, setShowGrouped] = useState<boolean>(true);
 
   const varieties = useMemo(() => {
     const uniqueVarieties = new Set(data.map(record => record.variety));
     return Array.from(uniqueVarieties).filter(Boolean);
   }, [data]);
 
-  const filteredAndSortedData = useMemo(() => {
+  // Group records by consignment number and supplier ref
+  const groupedData = useMemo(() => {
+    if (!showGrouped) return data;
+
+    // First, filter the data based on user filters
     const filtered = data.filter(record => {
       const matchesStatus = 
         statusFilter === "all" || 
@@ -34,60 +41,139 @@ export const DataTable = ({ data }: DataTableProps) => {
       return matchesStatus && matchesVariety && matchesReconciled;
     });
 
-    // Create groups for sorting
-    const groups: MatchedRecord[][] = [];
-    const processedRecords = new Set<MatchedRecord>();
-
-    // First pass: group by split transactions
+    // Group by splitGroupId first (existing split transactions)
     const splitGroups = new Map<string, MatchedRecord[]>();
+    
     filtered.forEach(record => {
-      if (record.splitGroupId && !processedRecords.has(record)) {
-        const group = filtered.filter(r => r.splitGroupId === record.splitGroupId);
-        if (group.length > 0) {
-          groups.push(group);
-          group.forEach(r => processedRecords.add(r));
+      if (record.splitGroupId) {
+        if (!splitGroups.has(record.splitGroupId)) {
+          splitGroups.set(record.splitGroupId, []);
         }
+        splitGroups.get(record.splitGroupId)!.push({...record, isChild: true});
       }
     });
-
-    // Second pass: group by consignment number
+    
+    // Group by consignment + supplier reference combinations
+    const groups = new Map<string, MatchedRecord[]>();
+    
     filtered.forEach(record => {
-      if (processedRecords.has(record)) return;
+      // Skip records already in split groups
+      if (record.splitGroupId && splitGroups.has(record.splitGroupId)) return;
       
-      const group = filtered.filter(r => 
-        (record.consignNumber && r.consignNumber === record.consignNumber) ||
-        (record.supplierRef && r.supplierRef === record.supplierRef)
-      );
+      const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       
-      if (group.length > 0) {
-        groups.push(group);
-        group.forEach(r => processedRecords.add(r));
+      // Only group if both identifiers are present or it's worth grouping
+      if ((record.consignNumber && record.supplierRef) || 
+          (record.consignNumber && !record.supplierRef) || 
+          (!record.consignNumber && record.supplierRef)) {
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+        groups.get(key)!.push({...record, isChild: true});
       }
     });
-
-    // Add any remaining records
-    const remainingRecords = filtered.filter(record => !processedRecords.has(record));
-    if (remainingRecords.length > 0) {
-      groups.push(remainingRecords);
-    }
-
-    // Sort groups by reconciliation status, then flatten
-    const sortedGroups = groups.sort((a, b) => {
-      const aReconciled = a.some(r => r.reconciled);
-      const bReconciled = b.some(r => r.reconciled);
-      if (aReconciled && !bReconciled) return -1;
-      if (!aReconciled && bReconciled) return 1;
-      return 0;
+    
+    // Convert groups to parent records with children
+    const result: (GroupedMatchedRecord | MatchedRecord)[] = [];
+    
+    // Process split groups first
+    splitGroups.forEach((records, groupId) => {
+      if (records.length <= 1) {
+        // If only one record, don't create a group
+        records.forEach(record => {
+          result.push({...record, isChild: false});
+        });
+        return;
+      }
+      
+      const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
+      const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
+      const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
+      const totalValue = records.reduce((sum, r) => sum + (r.proportionalValue || r.totalValue), 0);
+      
+      // Create a parent record
+      const firstRecord = records[0];
+      result.push({
+        ...firstRecord,
+        isGroupParent: true,
+        childRecords: records,
+        totalCartonsSent,
+        totalReceived,
+        totalSoldOnMarket,
+        totalValue,
+        // Group is reconciled if totals match
+        reconciled: Math.abs(totalCartonsSent - totalReceived) <= 1 && 
+                   Math.abs(totalReceived - totalSoldOnMarket) <= 1
+      });
     });
-
-    return sortedGroups.flat();
-  }, [data, statusFilter, varietyFilter, reconciledFilter]);
+    
+    // Process regular groups
+    groups.forEach((records, key) => {
+      if (records.length <= 1) {
+        // If only one record, don't create a group
+        records.forEach(record => {
+          result.push({...record, isChild: false});
+        });
+        return;
+      }
+      
+      const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
+      const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
+      const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
+      const totalValue = records.reduce((sum, r) => sum + (r.proportionalValue || r.totalValue), 0);
+      
+      // Create a parent record based on common values
+      const firstRecord = records[0];
+      result.push({
+        ...firstRecord,
+        isGroupParent: true,
+        childRecords: records,
+        totalCartonsSent,
+        totalReceived,
+        totalSoldOnMarket,
+        totalValue,
+        // Group is reconciled if totals match
+        reconciled: Math.abs(totalCartonsSent - totalReceived) <= 1 && 
+                   Math.abs(totalReceived - totalSoldOnMarket) <= 1,
+        groupId: key
+      });
+    });
+    
+    // Add records that weren't grouped
+    filtered.forEach(record => {
+      const inSplitGroup = record.splitGroupId && splitGroups.has(record.splitGroupId);
+      const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
+      const inRegularGroup = (record.consignNumber || record.supplierRef) && groups.has(key);
+      
+      if (!inSplitGroup && !inRegularGroup) {
+        result.push({...record, isChild: false});
+      }
+    });
+    
+    return result;
+  }, [data, statusFilter, varietyFilter, reconciledFilter, showGrouped]);
 
   const handleExport = () => {
-    generateExcel(filteredAndSortedData);
+    // Flatten grouped data for export
+    const exportData = groupedData.flatMap(record => {
+      if ('isGroupParent' in record && record.isGroupParent) {
+        return record.childRecords;
+      }
+      return record;
+    });
+    
+    generateExcel(exportData);
   };
 
   const getRowClassName = (record: MatchedRecord) => {
+    if (record.isChild) {
+      return 'bg-blue-900/10 hover:bg-blue-900/20';
+    }
+    if ('isGroupParent' in record && record.isGroupParent) {
+      return record.reconciled 
+        ? 'bg-green-900/10 hover:bg-green-900/20 font-medium' 
+        : 'bg-blue-900/20 hover:bg-blue-900/30 font-medium';
+    }
     if (record.isSplitTransaction) {
       return 'bg-blue-900/20 hover:bg-blue-900/30';
     }
@@ -124,6 +210,22 @@ export const DataTable = ({ data }: DataTableProps) => {
         onReconciledChange={setReconciledFilter}
         onExport={handleExport}
       />
+      
+      <div className="flex items-center space-x-2 mb-2">
+        <button
+          className={`px-3 py-1 text-sm rounded-md transition-colors ${
+            showGrouped 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-secondary text-secondary-foreground'
+          }`}
+          onClick={() => setShowGrouped(!showGrouped)}
+        >
+          {showGrouped ? 'Grouped View' : 'Flat View'}
+        </button>
+        <span className="text-sm text-muted-foreground">
+          {showGrouped ? 'Related transactions are grouped together' : 'Showing all individual transactions'}
+        </span>
+      </div>
 
       <div className="rounded-md border border-primary/20 bg-[#1A1F2C]">
         <div className="border-b border-primary/20 sticky top-0 z-10">
@@ -135,14 +237,29 @@ export const DataTable = ({ data }: DataTableProps) => {
         <div className="max-h-[calc(70vh-4rem)] overflow-auto">
           <Table>
             <TableBody>
-              {filteredAndSortedData.map((record, index) => (
-                <DataRow
-                  key={index}
-                  record={record}
-                  columnClasses={columnClasses}
-                  getRowClassName={getRowClassName}
-                />
-              ))}
+              {groupedData.map((record, index) => {
+                // Check if it's a group record
+                if ('isGroupParent' in record && record.isGroupParent) {
+                  return (
+                    <GroupRow
+                      key={`group-${index}`}
+                      groupRecord={record}
+                      columnClasses={columnClasses}
+                      getRowClassName={getRowClassName}
+                    />
+                  );
+                }
+                
+                // Regular record
+                return (
+                  <DataRow
+                    key={`record-${index}`}
+                    record={record}
+                    columnClasses={columnClasses}
+                    getRowClassName={getRowClassName}
+                  />
+                );
+              })}
             </TableBody>
           </Table>
         </div>

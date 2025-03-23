@@ -15,7 +15,7 @@ interface DataRowProps {
 export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps) => {
   return (
     <TableRow
-      className={`${getRowClassName(record)} transition-colors border-b border-primary/10`}
+      className={`${getRowClassName(record)} transition-colors border-b border-primary/10 ${record.isChild ? 'opacity-75' : ''}`}
     >
       <TableCell className={`${columnClasses.consign} text-primary font-medium`}>{record.consignNumber}</TableCell>
       <TableCell className={`${columnClasses.supplier} text-primary font-medium`}>{record.supplierRef}</TableCell>
