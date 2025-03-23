@@ -32,7 +32,7 @@ export const DataTable = ({ data }: DataTableProps) => {
     const filtered = data.filter(record => {
       const matchesStatus = 
         statusFilter === "all" || 
-        (statusFilter === "matched" && (record.status === "Matched" || record.status === "Split")) ||
+        (statusFilter === "matched" && record.status === "Matched") ||
         (statusFilter === "unmatched" && record.status === "Unmatched");
       
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
@@ -40,26 +40,11 @@ export const DataTable = ({ data }: DataTableProps) => {
         (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
       return matchesStatus && matchesVariety && matchesReconciled;
     });
-
-    // Group by splitGroupId first (existing split transactions)
-    const splitGroups = new Map<string, MatchedRecord[]>();
-    
-    filtered.forEach(record => {
-      if (record.splitGroupId) {
-        if (!splitGroups.has(record.splitGroupId)) {
-          splitGroups.set(record.splitGroupId, []);
-        }
-        splitGroups.get(record.splitGroupId)!.push({...record, isChild: true});
-      }
-    });
     
     // Group by consignment + supplier reference combinations
     const groups = new Map<string, MatchedRecord[]>();
     
     filtered.forEach(record => {
-      // Skip records already in split groups
-      if (record.splitGroupId && splitGroups.has(record.splitGroupId)) return;
-      
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       
       // Only group if both identifiers are present or it's worth grouping
@@ -76,37 +61,6 @@ export const DataTable = ({ data }: DataTableProps) => {
     // Convert groups to parent records with children
     const result: (GroupedMatchedRecord | MatchedRecord)[] = [];
     
-    // Process split groups first
-    splitGroups.forEach((records, groupId) => {
-      if (records.length <= 1) {
-        // If only one record, don't create a group
-        records.forEach(record => {
-          result.push({...record, isChild: false});
-        });
-        return;
-      }
-      
-      const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
-      const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
-      const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
-      const totalValue = records.reduce((sum, r) => sum + (r.proportionalValue || r.totalValue), 0);
-      
-      // Create a parent record
-      const firstRecord = records[0];
-      result.push({
-        ...firstRecord,
-        isGroupParent: true,
-        childRecords: records,
-        totalCartonsSent,
-        totalReceived,
-        totalSoldOnMarket,
-        totalValue,
-        // Group is reconciled if totals match
-        reconciled: Math.abs(totalCartonsSent - totalReceived) <= 1 && 
-                   Math.abs(totalReceived - totalSoldOnMarket) <= 1
-      });
-    });
-    
     // Process regular groups
     groups.forEach((records, key) => {
       if (records.length <= 1) {
@@ -120,11 +74,11 @@ export const DataTable = ({ data }: DataTableProps) => {
       const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
       const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
       const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
-      const totalValue = records.reduce((sum, r) => sum + (r.proportionalValue || r.totalValue), 0);
+      const totalValue = records.reduce((sum, r) => sum + r.totalValue, 0);
       
       // Create a parent record based on common values
       const firstRecord = records[0];
-      result.push({
+      const groupedRecord: GroupedMatchedRecord = {
         ...firstRecord,
         isGroupParent: true,
         childRecords: records,
@@ -136,16 +90,17 @@ export const DataTable = ({ data }: DataTableProps) => {
         reconciled: Math.abs(totalCartonsSent - totalReceived) <= 1 && 
                    Math.abs(totalReceived - totalSoldOnMarket) <= 1,
         groupId: key
-      });
+      };
+      
+      result.push(groupedRecord);
     });
     
     // Add records that weren't grouped
     filtered.forEach(record => {
-      const inSplitGroup = record.splitGroupId && splitGroups.has(record.splitGroupId);
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       const inRegularGroup = (record.consignNumber || record.supplierRef) && groups.has(key);
       
-      if (!inSplitGroup && !inRegularGroup) {
+      if (!inRegularGroup) {
         result.push({...record, isChild: false});
       }
     });
@@ -173,9 +128,6 @@ export const DataTable = ({ data }: DataTableProps) => {
       return record.reconciled 
         ? 'bg-green-900/10 hover:bg-green-900/20 font-medium' 
         : 'bg-blue-900/20 hover:bg-blue-900/30 font-medium';
-    }
-    if (record.isSplitTransaction) {
-      return 'bg-blue-900/20 hover:bg-blue-900/30';
     }
     if (!record.consignNumber && !record.supplierRef) {
       return 'bg-orange-900/30 hover:bg-orange-900/40';

@@ -262,23 +262,10 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     throw new Error('Invalid data format');
   }
   
-  console.log('Running flexible column matching with improved split transaction support...');
+  console.log('Running flexible column matching...');
   
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
-  
-  // Group load data by consignment number
-  const loadDataByConsign = new Map<string, any[]>();
-  
-  loadDataMap.forEach(load => {
-    const consignNumber = load.consign?.toString() || '';
-    if (consignNumber) {
-      if (!loadDataByConsign.has(consignNumber)) {
-        loadDataByConsign.set(consignNumber, []);
-      }
-      loadDataByConsign.get(consignNumber)!.push(load);
-    }
-  });
   
   // Prepare sales data by last 4 digits
   const salesByLast4 = new Map<string, any[]>();
@@ -297,14 +284,10 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const matchedRecords: MatchedRecord[] = [];
   const processedSales = new Set<any>();
 
-  // Process consignment groups (potential split transactions)
-  loadDataByConsign.forEach((loadGroup, consignNumber) => {
+  // Process loads
+  loadDataMap.forEach(load => {
+    const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
-    const totalCartonsSent = loadGroup.reduce((sum, load) => sum + (Number(load.cartons) || 0), 0);
-    
-    // Check if this is a split transaction (multiple loads with same consign number)
-    const isSplitTransaction = loadGroup.length > 1;
-    const splitGroupId = isSplitTransaction ? `split-${consignNumber}` : undefined;
     
     // Find matching sales entry
     let matchedSale = null;
@@ -314,7 +297,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       // Try to find a direct match by sent quantity
       matchedSale = possibleSales.find(sale => 
         !processedSales.has(sale) && 
-        Math.abs(Number(sale.sent) - totalCartonsSent) <= Math.max(1, totalCartonsSent * 0.01) // 1% tolerance
+        Math.abs(Number(sale.sent) - Number(load.cartons)) <= Math.max(1, Number(load.cartons) * 0.01) // 1% tolerance
       );
       
       // If no direct match, take the first available one
@@ -326,81 +309,42 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     if (matchedSale) {
       processedSales.add(matchedSale);
       
+      const cartonsSent = Number(load.cartons) || 0;
       const received = Number(matchedSale.sent) || 0;
       const soldOnMarket = Number(matchedSale.sold) || 0;
       const totalValue = Number(matchedSale.totalValue) || 0;
       
-      // For split transactions, distribute received quantities and values proportionally
-      if (isSplitTransaction) {
-        loadGroup.forEach(load => {
-          const cartonsSent = Number(load.cartons) || 0;
-          const proportion = totalCartonsSent > 0 ? cartonsSent / totalCartonsSent : 0;
-          
-          const proportionalReceived = Math.round(received * proportion);
-          const proportionalSold = Math.round(soldOnMarket * proportion);
-          const proportionalValue = totalValue * proportion;
-          
-          matchedRecords.push({
-            consignNumber,
-            supplierRef: matchedSale.supplierRef || '',
-            status: 'Split',
-            variety: load.variety || '',
-            cartonType: load.cartonType || '',
-            cartonsSent,
-            received: proportionalReceived,
-            deviationSentReceived: cartonsSent - proportionalReceived,
-            soldOnMarket: proportionalSold,
-            deviationReceivedSold: proportionalReceived - proportionalSold,
-            totalValue,
-            proportionalValue,
-            reconciled: Math.abs(cartonsSent - proportionalReceived) <= 1 && 
-                        Math.abs(proportionalReceived - proportionalSold) <= 1,
-            isSplitTransaction: true,
-            splitGroupId
-          });
-        });
-      } else {
-        // Standard single-entry match
-        const load = loadGroup[0];
-        const cartonsSent = Number(load.cartons) || 0;
-        
-        matchedRecords.push({
-          consignNumber,
-          supplierRef: matchedSale.supplierRef || '',
-          status: 'Matched',
-          variety: load.variety || '',
-          cartonType: load.cartonType || '',
-          cartonsSent,
-          received,
-          deviationSentReceived: cartonsSent - received,
-          soldOnMarket,
-          deviationReceivedSold: received - soldOnMarket,
-          totalValue,
-          reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1,
-          isSplitTransaction: false
-        });
-      }
+      matchedRecords.push({
+        consignNumber,
+        supplierRef: matchedSale.supplierRef || '',
+        status: 'Matched',
+        variety: load.variety || '',
+        cartonType: load.cartonType || '',
+        cartonsSent,
+        received,
+        deviationSentReceived: cartonsSent - received,
+        soldOnMarket,
+        deviationReceivedSold: received - soldOnMarket,
+        totalValue,
+        reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1
+      });
     } else {
-      // No match found for this consignment group
-      loadGroup.forEach(load => {
-        const cartonsSent = Number(load.cartons) || 0;
-        
-        matchedRecords.push({
-          consignNumber,
-          supplierRef: '',
-          status: 'Unmatched',
-          variety: load.variety || '',
-          cartonType: load.cartonType || '',
-          cartonsSent,
-          received: 0,
-          deviationSentReceived: cartonsSent,
-          soldOnMarket: 0,
-          deviationReceivedSold: 0,
-          totalValue: 0,
-          reconciled: false,
-          isSplitTransaction: isSplitTransaction,
-          splitGroupId: isSplitTransaction ? splitGroupId : undefined
-        });
+      // No match found
+      const cartonsSent = Number(load.cartons) || 0;
+      
+      matchedRecords.push({
+        consignNumber,
+        supplierRef: '',
+        status: 'Unmatched',
+        variety: load.variety || '',
+        cartonType: load.cartonType || '',
+        cartonsSent,
+        received: 0,
+        deviationSentReceived: cartonsSent,
+        soldOnMarket: 0,
+        deviationReceivedSold: 0,
+        totalValue: 0,
+        reconciled: false
       });
     }
   });
@@ -426,8 +370,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         soldOnMarket,
         deviationReceivedSold: received - soldOnMarket,
         totalValue: Number(sale.totalValue) || 0,
-        reconciled: false,
-        isSplitTransaction: false
+        reconciled: false
       });
     }
   });
@@ -715,22 +658,20 @@ export function calculateStatistics(data: MatchedRecord[]): Statistics {
   const baseRecords = data.filter(record => !record.isChild);
   
   const matchedRecords = baseRecords.filter(record => record.status === 'Matched');
-  const splitRecords = baseRecords.filter(record => record.status === 'Split');
   const totalValue = baseRecords.reduce((sum, record) => {
     if ('isGroupParent' in record && record.isGroupParent) {
       return sum + record.totalValue;
     }
-    return sum + (record.proportionalValue || record.totalValue);
+    return sum + record.totalValue;
   }, 0);
   
   return {
     totalRecords: baseRecords.length,
     matchedCount: matchedRecords.length,
-    unmatchedCount: baseRecords.length - matchedRecords.length - splitRecords.length,
-    splitCount: splitRecords.length,
+    unmatchedCount: baseRecords.length - matchedRecords.length,
     totalValue,
     averageValue: baseRecords.length > 0 ? totalValue / baseRecords.length : 0,
-    matchRate: baseRecords.length > 0 ? ((matchedRecords.length + splitRecords.length) / baseRecords.length) * 100 : 0
+    matchRate: baseRecords.length > 0 ? (matchedRecords.length / baseRecords.length) * 100 : 0
   };
 }
 
@@ -739,7 +680,6 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Consign Number': item.consignNumber,
     'Supplier Ref': item.supplierRef,
     'Status': item.status,
-    'Split Transaction': item.isSplitTransaction ? 'Yes' : 'No',
     'Variety': item.variety,
     'Carton Type': item.cartonType,
     '# Ctns Sent': item.cartonsSent,
@@ -747,7 +687,7 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Deviation Sent/Received': item.deviationSentReceived,
     'Sold on market': item.soldOnMarket,
     'Deviation Received/Sold': item.deviationReceivedSold,
-    'Total Value': item.proportionalValue || item.totalValue,
+    'Total Value': item.totalValue,
     'Reconciled': item.reconciled ? 'Yes' : 'No'
   }));
 

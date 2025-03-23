@@ -30,7 +30,7 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
   return (
     <>
       <TableRow
-        className={`${getRowClassName({ ...groupRecord, isSplitTransaction: true })} border-b border-primary/10 cursor-pointer group`}
+        className={`${getRowClassName(groupRecord)} border-b border-primary/10 cursor-pointer group`}
         onClick={toggleExpand}
       >
         <TableCell className={`${columnClasses.consign} text-primary font-medium`}>

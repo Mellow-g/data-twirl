@@ -1,10 +1,9 @@
 
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Check, X, Split } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { MatchedRecord } from "@/types";
 import { formatNumber } from "@/utils/fileProcessor";
 import { ColumnClasses } from "./types";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DataRowProps {
   record: MatchedRecord;
@@ -23,23 +22,10 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
         <span
           className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
             ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 
-              record.status === 'Split' ? 'bg-blue-500/20 text-blue-500' : 
               'bg-destructive/20 text-destructive'}`
           }
         >
           {record.status}
-          {record.isSplitTransaction && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Split className="ml-1 h-3 w-3" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Split Transaction</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
         </span>
       </TableCell>
       <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
@@ -49,7 +35,7 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.soldOnMarket)}</TableCell>
       <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationReceivedSold)}</TableCell>
-      <TableCell className={`${columnClasses.value} text-primary`}>{formatNumber(record.proportionalValue ?? record.totalValue, 'currency')}</TableCell>
+      <TableCell className={`${columnClasses.value} text-primary`}>{formatNumber(record.totalValue, 'currency')}</TableCell>
       <TableCell className={columnClasses.reconciled}>
         {record.reconciled ? (
           <Check className="h-5 w-5 text-green-500 mx-auto" />
