@@ -24,7 +24,11 @@ export const DataTable = ({ data }: DataTableProps) => {
 
   const filteredAndSortedData = useMemo(() => {
     const filtered = data.filter(record => {
-      const matchesStatus = statusFilter === "all" || record.status === (statusFilter === "matched" ? "Matched" : "Unmatched");
+      const matchesStatus = 
+        statusFilter === "all" || 
+        (statusFilter === "matched" && (record.status === "Matched" || record.status === "Split Transaction")) ||
+        (statusFilter === "unmatched" && record.status === "Unmatched");
+      
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       const matchesReconciled = reconciledFilter === "all" || 
         (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
@@ -75,6 +79,9 @@ export const DataTable = ({ data }: DataTableProps) => {
   const getRowClassName = (record: MatchedRecord) => {
     if (!record.consignNumber && !record.supplierRef) {
       return 'bg-orange-900/30 hover:bg-orange-900/40';
+    }
+    if (record.status === 'Split Transaction') {
+      return 'bg-blue-900/10 hover:bg-blue-900/20';
     }
     if (record.status === 'Unmatched') {
       return 'bg-destructive/10 hover:bg-destructive/20';
