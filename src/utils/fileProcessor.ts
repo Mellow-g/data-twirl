@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -262,26 +263,14 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     throw new Error('Invalid data format');
   }
   
-  console.log('Running enhanced matching with split transaction handling...');
+  console.log('Running flexible column matching...');
   
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
-  // Create a map of sales data grouped by supplier reference
-  const salesBySupplierRef = new Map();
-  
-  salesDataMap.forEach(sale => {
-    const supplierRef = sale.supplierRef?.toString().trim();
-    if (isValidSupplierRef(supplierRef)) {
-      if (!salesBySupplierRef.has(supplierRef)) {
-        salesBySupplierRef.set(supplierRef, []);
-      }
-      salesBySupplierRef.get(supplierRef).push(sale);
-    }
-  });
-
-  // Also keep a map by last 4 digits as fallback
+  // Create a map of sales data keyed by the last 4 digits of supplier reference
   const salesByLast4 = new Map();
+  
   salesDataMap.forEach(sale => {
     const supplierRef = sale.supplierRef?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
@@ -292,126 +281,56 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       salesByLast4.get(last4).push(sale);
     }
   });
-  
-  // Group load data by consignment number to identify potential splits
-  const loadsByConsign = new Map();
-  loadDataMap.forEach(load => {
-    const consignNumber = load.consign?.toString() || '';
-    if (!loadsByConsign.has(consignNumber)) {
-      loadsByConsign.set(consignNumber, []);
-    }
-    loadsByConsign.get(consignNumber).push(load);
-  });
-  
+
+  // Process load data first
   const matchedRecords: MatchedRecord[] = [];
   const processedSales = new Set(); // Track which sales have been matched
-  
-  // Process each consignment group
-  loadsByConsign.forEach((loads, consignNumber) => {
+
+  loadDataMap.forEach(load => {
+    const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
-    const possibleSales = salesByLast4.get(last4) || [];
-    
-    // Check if this is a split transaction (multiple loads with same consignment)
-    const isSplitLoad = loads.length > 1;
-    
-    // Total cartons across all loads with this consignment
-    const totalCartonsSent = loads.reduce((sum, load) => sum + (Number(load.cartons) || 0), 0);
-    
-    // Find sales matching this total
-    const matchingSales = possibleSales.filter(sale => 
-      Number(sale.sent) === totalCartonsSent
-    );
-    
-    if (matchingSales.length > 0) {
-      // We found exact match(es) for the total
-      const matchedSale = matchingSales[0];
-      processedSales.add(matchedSale);
+    const cartonsSent = Number(load.cartons) || 0;
+
+    let matchedSale = null;
+    if (last4) {
+      const possibleSales = salesByLast4.get(last4) || [];
+      // Try to find best match based on carton count
+      matchedSale = possibleSales.find(sale => 
+        Number(sale.sent) === cartonsSent
+      );
       
-      // Create a record for each load in the split
-      loads.forEach(load => {
-        const cartonsSent = Number(load.cartons) || 0;
-        const proportionOfTotal = cartonsSent / totalCartonsSent;
-        
-        // Distribute quantities proportionally for split transactions
-        const received = isSplitLoad ? 
-          Math.round(Number(matchedSale.sent) * proportionOfTotal) : 
-          Number(matchedSale.sent);
-          
-        const soldOnMarket = isSplitLoad ? 
-          Math.round(Number(matchedSale.sold) * proportionOfTotal) : 
-          Number(matchedSale.sold);
-          
-        const totalValue = isSplitLoad ? 
-          Number(matchedSale.totalValue) * proportionOfTotal : 
-          Number(matchedSale.totalValue);
-        
-        matchedRecords.push({
-          consignNumber,
-          supplierRef: matchedSale.supplierRef || '',
-          status: isSplitLoad ? 'Split Transaction' : 'Matched',
-          variety: load.variety || '',
-          cartonType: load.cartonType || '',
-          cartonsSent,
-          received,
-          deviationSentReceived: cartonsSent - received,
-          soldOnMarket,
-          deviationReceivedSold: received - soldOnMarket,
-          totalValue,
-          reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1,
-          splitTransaction: isSplitLoad
-        });
-      });
-    } else {
-      // No exact total match, try matching individual loads
-      loads.forEach(load => {
-        const cartonsSent = Number(load.cartons) || 0;
-        let matchedSale = null;
-        
-        // Try to find exact match by carton count
-        matchedSale = possibleSales.find(sale => 
-          !processedSales.has(sale) && Number(sale.sent) === cartonsSent
-        );
-        
-        // If no exact match, find closest match by carton count
-        if (!matchedSale && possibleSales.length > 0) {
-          matchedSale = possibleSales.reduce((closest, sale) => {
-            if (processedSales.has(sale)) return closest;
-            
-            const currentDiff = Math.abs(Number(sale.sent) - cartonsSent);
-            const closestDiff = closest ? Math.abs(Number(closest.sent) - cartonsSent) : Infinity;
-            
-            return currentDiff < closestDiff ? sale : closest;
-          }, null);
-        }
-        
-        if (matchedSale) {
-          processedSales.add(matchedSale);
-        }
-        
-        const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
-        const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
-        const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
-        
-        matchedRecords.push({
-          consignNumber,
-          supplierRef: matchedSale ? matchedSale.supplierRef || '' : '',
-          status: matchedSale ? 'Matched' : 'Unmatched',
-          variety: load.variety || '',
-          cartonType: load.cartonType || '',
-          cartonsSent,
-          received,
-          deviationSentReceived: cartonsSent - received,
-          soldOnMarket,
-          deviationReceivedSold: received - soldOnMarket,
-          totalValue,
-          reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1,
-          splitTransaction: false
-        });
-      });
+      // If no exact match found, use the first one if any exist
+      if (!matchedSale && possibleSales.length > 0) {
+        matchedSale = possibleSales[0];
+      }
+      
+      // Mark this sale as processed if we found a match
+      if (matchedSale) {
+        processedSales.add(matchedSale);
+      }
     }
+
+    const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
+    const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
+    const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
+
+    matchedRecords.push({
+      consignNumber,
+      supplierRef: matchedSale ? matchedSale.supplierRef || '' : '',
+      status: matchedSale ? 'Matched' : 'Unmatched',
+      variety: load.variety || '',
+      cartonType: load.cartonType || '',
+      cartonsSent,
+      received,
+      deviationSentReceived: cartonsSent - received,
+      soldOnMarket,
+      deviationReceivedSold: received - soldOnMarket,
+      totalValue,
+      reconciled: cartonsSent === received && received === soldOnMarket
+    });
   });
-  
-  // Process any unmatched sales data
+
+  // Now process any unmatched sales data
   salesDataMap.forEach(sale => {
     // Skip if this sale was already matched to a load
     if (processedSales.has(sale)) {
@@ -422,7 +341,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     if (isValidSupplierRef(supplierRef)) {
       const received = Number(sale.sent) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
-      
+
       matchedRecords.push({
         consignNumber: '',
         supplierRef: supplierRef,
@@ -435,12 +354,11 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         soldOnMarket,
         deviationReceivedSold: received - soldOnMarket,
         totalValue: Number(sale.totalValue) || 0,
-        reconciled: false,
-        splitTransaction: false
+        reconciled: false
       });
     }
   });
-  
+
   return matchedRecords;
 }
 
@@ -764,3 +682,4 @@ export function generateExcel(data: MatchedRecord[]): void {
   XLSX.utils.book_append_sheet(wb, ws, 'Matching Report');
   XLSX.writeFile(wb, 'matching_report.xlsx');
 }
+
