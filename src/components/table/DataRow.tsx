@@ -19,15 +19,20 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       <TableCell className={`${columnClasses.consign} text-primary font-medium`}>{record.consignNumber}</TableCell>
       <TableCell className={`${columnClasses.supplier} text-primary font-medium`}>{record.supplierRef}</TableCell>
       <TableCell className={columnClasses.status}>
-        <span
-          className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
-            ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 
-              record.status === 'Split Transaction' ? 'bg-blue-500/20 text-blue-500' : 
-              'bg-destructive/20 text-destructive'}`
-          }
-        >
-          {record.status}
-        </span>
+        <div className="flex items-center justify-center gap-2">
+          {record.splitTransaction && (
+            <Split className="h-4 w-4 text-blue-500" title="Split Transaction" />
+          )}
+          <span
+            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium
+              ${record.status === 'Matched' ? 'bg-green-500/20 text-green-500' : 
+                record.status === 'Split Transaction' ? 'bg-blue-500/20 text-blue-500' : 
+                'bg-destructive/20 text-destructive'}`
+            }
+          >
+            {record.status}
+          </span>
+        </div>
       </TableCell>
       <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
       <TableCell className={`${columnClasses.cartonType} text-primary font-medium`}>{record.cartonType || "-"}</TableCell>
