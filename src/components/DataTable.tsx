@@ -113,21 +113,21 @@ export const DataTable = ({ data }: DataTableProps) => {
   const sortRecordsByReconciliationStatus = (records: (GroupedMatchedRecord | MatchedRecord)[]) => {
     return [...records].sort((a, b) => {
       // Helper function to get the sorting value based on reconciliation status
-      const getSortValue = (record: GroupedMatchedRecord | MatchedRecord) => {
+      const getSortValue = (record: GroupedMatchedRecord | MatchedRecord): number => {
         // Fully reconciled items first
-        if (record.reconciled) return 1;
+        if (record.reconciled) return 0;
         
         // For group records, check if any children are reconciled (partial reconciliation)
         if ('isGroupParent' in record && record.isGroupParent) {
           const hasReconciledChildren = record.childRecords.some(child => child.reconciled);
-          if (hasReconciledChildren) return 2; // Partial reconciliation
+          if (hasReconciledChildren) return 1; // Partial reconciliation
         }
         
         // Unreconciled but matched
-        if (record.status === 'Matched') return 3;
+        if (record.status === 'Matched') return 2;
         
         // Unmatched at the bottom
-        return 4;
+        return 3;
       };
       
       return getSortValue(a) - getSortValue(b);
