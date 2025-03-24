@@ -267,7 +267,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
-  // Prepare sales data by last 4 digits
+  // Create a map of sales data keyed by the last 4 digits of supplier reference
   const salesByLast4 = new Map<string, any[]>();
   
   salesDataMap.forEach(sale => {
@@ -281,77 +281,60 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
+  // Process load data first
   const matchedRecords: MatchedRecord[] = [];
-  const processedSales = new Set<any>();
+  const processedSales = new Set<any>(); // Track which sales have been matched
 
-  // Process loads
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
-    
-    // Find matching sales entry
+    const cartonsSent = Number(load.cartons) || 0;
+
     let matchedSale = null;
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
-      
-      // Try to find a direct match by sent quantity
+      // Try to find best match based on carton count
       matchedSale = possibleSales.find(sale => 
-        !processedSales.has(sale) && 
-        Math.abs(Number(sale.sent) - Number(load.cartons)) <= Math.max(1, Number(load.cartons) * 0.01) // 1% tolerance
+        Number(sale.sent) === cartonsSent
       );
       
-      // If no direct match, take the first available one
+      // If no exact match found, use the first one if any exist
       if (!matchedSale && possibleSales.length > 0) {
-        matchedSale = possibleSales.find(sale => !processedSales.has(sale));
+        matchedSale = possibleSales[0];
+      }
+      
+      // Mark this sale as processed if we found a match
+      if (matchedSale) {
+        processedSales.add(matchedSale);
       }
     }
-    
-    if (matchedSale) {
-      processedSales.add(matchedSale);
-      
-      const cartonsSent = Number(load.cartons) || 0;
-      const received = Number(matchedSale.sent) || 0;
-      const soldOnMarket = Number(matchedSale.sold) || 0;
-      const totalValue = Number(matchedSale.totalValue) || 0;
-      
-      matchedRecords.push({
-        consignNumber,
-        supplierRef: matchedSale.supplierRef || '',
-        status: 'Matched',
-        variety: load.variety || '',
-        cartonType: load.cartonType || '',
-        cartonsSent,
-        received,
-        deviationSentReceived: cartonsSent - received,
-        soldOnMarket,
-        deviationReceivedSold: received - soldOnMarket,
-        totalValue,
-        reconciled: Math.abs(cartonsSent - received) <= 1 && Math.abs(received - soldOnMarket) <= 1
-      });
-    } else {
-      // No match found
-      const cartonsSent = Number(load.cartons) || 0;
-      
-      matchedRecords.push({
-        consignNumber,
-        supplierRef: '',
-        status: 'Unmatched',
-        variety: load.variety || '',
-        cartonType: load.cartonType || '',
-        cartonsSent,
-        received: 0,
-        deviationSentReceived: cartonsSent,
-        soldOnMarket: 0,
-        deviationReceivedSold: 0,
-        totalValue: 0,
-        reconciled: false
-      });
-    }
+
+    const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
+    const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
+    const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
+
+    matchedRecords.push({
+      consignNumber,
+      supplierRef: matchedSale ? matchedSale.supplierRef || '' : '',
+      status: matchedSale ? 'Matched' : 'Unmatched',
+      variety: load.variety || '',
+      cartonType: load.cartonType || '',
+      cartonsSent,
+      received,
+      deviationSentReceived: cartonsSent - received,
+      soldOnMarket,
+      deviationReceivedSold: received - soldOnMarket,
+      totalValue,
+      reconciled: cartonsSent === received && received === soldOnMarket
+    });
   });
 
-  // Process remaining unmatched sales entries
+  // Now process any unmatched sales data
   salesDataMap.forEach(sale => {
-    if (processedSales.has(sale)) return;
+    // Skip if this sale was already matched to a load
+    if (processedSales.has(sale)) {
+      return;
+    }
     
     const supplierRef = sale.supplierRef?.toString().trim();
     if (isValidSupplierRef(supplierRef)) {
