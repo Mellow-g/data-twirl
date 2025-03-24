@@ -195,7 +195,7 @@ export const DataTable = ({ data }: DataTableProps) => {
                   return (
                     <GroupRow
                       key={`group-${index}`}
-                      groupRecord={record}
+                      groupRecord={record as GroupedMatchedRecord}
                       columnClasses={columnClasses}
                       getRowClassName={getRowClassName}
                     />

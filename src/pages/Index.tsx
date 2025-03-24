@@ -75,11 +75,9 @@ const Index = () => {
         setMatchedData(matched);
         setStatistics(stats);
         
-        const splitInfo = stats.splitCount > 0 ? `, ${stats.splitCount} split transactions` : '';
-        
         toast({
           title: "Analysis complete",
-          description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records${splitInfo}`,
+          description: `Matched ${stats.matchedCount} out of ${stats.totalRecords} records`,
         });
       } catch (err) {
         throw new Error(`Error matching data: ${err instanceof Error ? err.message : 'Unknown error'}`);

@@ -18,7 +18,7 @@ export interface MatchedRecord {
   deviationReceivedSold: number;
   totalValue: number;
   reconciled: boolean;
-  // New fields for grouping
+  // Fields for grouping
   isGroupParent?: boolean;
   groupId?: string;
   childRecords?: MatchedRecord[];
