@@ -105,8 +105,34 @@ export const DataTable = ({ data }: DataTableProps) => {
       }
     });
     
-    return result;
+    // Sort the records by reconciliation status
+    return sortRecordsByReconciliationStatus(result);
   }, [data, statusFilter, varietyFilter, reconciledFilter, showGrouped]);
+
+  // Function to sort records by reconciliation status
+  const sortRecordsByReconciliationStatus = (records: (GroupedMatchedRecord | MatchedRecord)[]) => {
+    return [...records].sort((a, b) => {
+      // Helper function to get the sorting value based on reconciliation status
+      const getSortValue = (record: GroupedMatchedRecord | MatchedRecord) => {
+        // Fully reconciled items first
+        if (record.reconciled) return 1;
+        
+        // For group records, check if any children are reconciled (partial reconciliation)
+        if ('isGroupParent' in record && record.isGroupParent) {
+          const hasReconciledChildren = record.childRecords.some(child => child.reconciled);
+          if (hasReconciledChildren) return 2; // Partial reconciliation
+        }
+        
+        // Unreconciled but matched
+        if (record.status === 'Matched') return 3;
+        
+        // Unmatched at the bottom
+        return 4;
+      };
+      
+      return getSortValue(a) - getSortValue(b);
+    });
+  };
 
   const handleExport = () => {
     // Flatten grouped data for export
@@ -125,9 +151,16 @@ export const DataTable = ({ data }: DataTableProps) => {
       return 'bg-blue-900/10 hover:bg-blue-900/20';
     }
     if ('isGroupParent' in record && record.isGroupParent) {
-      return record.reconciled 
-        ? 'bg-green-900/10 hover:bg-green-900/20 font-medium' 
-        : 'bg-blue-900/20 hover:bg-blue-900/30 font-medium';
+      // Check if any children are reconciled for partial status
+      const hasReconciledChildren = record.childRecords.some(child => child.reconciled);
+      
+      if (record.reconciled) {
+        return 'bg-green-900/10 hover:bg-green-900/20 font-medium';
+      } else if (hasReconciledChildren) {
+        return 'bg-yellow-900/10 hover:bg-yellow-900/20 font-medium';
+      } else {
+        return 'bg-blue-900/20 hover:bg-blue-900/30 font-medium';
+      }
     }
     if (!record.consignNumber && !record.supplierRef) {
       return 'bg-orange-900/30 hover:bg-orange-900/40';
