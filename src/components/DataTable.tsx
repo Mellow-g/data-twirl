@@ -74,6 +74,7 @@ export const DataTable = ({ data }: DataTableProps) => {
       const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
       const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
       const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
+      // Ensure we're adding the exact total values from the underlying records
       const totalValue = records.reduce((sum, r) => sum + r.totalValue, 0);
       
       // Create a parent record based on common values
@@ -105,7 +106,31 @@ export const DataTable = ({ data }: DataTableProps) => {
       }
     });
     
-    return result;
+    // Sort the result by reconciliation status
+    return result.sort((a, b) => {
+      // Get status for sorting
+      const getStatusSortValue = (record: MatchedRecord | GroupedMatchedRecord): number => {
+        // Reconciled status
+        if (record.reconciled) return 0;
+        
+        // Partial reconciliation status (only for group parents)
+        if ('isGroupParent' in record && record.isGroupParent) {
+          // Check if any children are reconciled
+          if (record.childRecords.some(child => child.reconciled)) return 1;
+        }
+        
+        // Unreconciled but matched
+        if (record.status === 'Matched') return 2;
+        
+        // Unmatched (lowest priority)
+        return 3;
+      };
+      
+      const aValue = getStatusSortValue(a);
+      const bValue = getStatusSortValue(b);
+      
+      return aValue - bValue;
+    });
   }, [data, statusFilter, varietyFilter, reconciledFilter, showGrouped]);
 
   const handleExport = () => {

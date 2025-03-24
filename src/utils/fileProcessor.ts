@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -268,7 +269,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
   // Create a map of sales data keyed by the last 4 digits of supplier reference
-  const salesByLast4 = new Map<string, any[]>();
+  const salesByLast4 = new Map();
   
   salesDataMap.forEach(sale => {
     const supplierRef = sale.supplierRef?.toString().trim();
@@ -277,13 +278,13 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       if (!salesByLast4.has(last4)) {
         salesByLast4.set(last4, []);
       }
-      salesByLast4.get(last4)!.push(sale);
+      salesByLast4.get(last4).push(sale);
     }
   });
 
   // Process load data first
   const matchedRecords: MatchedRecord[] = [];
-  const processedSales = new Set<any>(); // Track which sales have been matched
+  const processedSales = new Set(); // Track which sales have been matched
 
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
@@ -311,7 +312,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
     const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
-    const totalValue = matchedSale ? Number(matchedSale.totalValue) || 0 : 0;
+    // Use the exact value from the sales data without any transformation
+    const totalValue = matchedSale ? matchedSale.totalValue || 0 : 0;
 
     matchedRecords.push({
       consignNumber,
@@ -340,6 +342,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     if (isValidSupplierRef(supplierRef)) {
       const received = Number(sale.sent) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
+      // Use the exact value from sales data
+      const totalValue = sale.totalValue || 0;
 
       matchedRecords.push({
         consignNumber: '',
@@ -352,7 +356,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         deviationSentReceived: -received,
         soldOnMarket,
         deviationReceivedSold: received - soldOnMarket,
-        totalValue: Number(sale.totalValue) || 0,
+        totalValue,
         reconciled: false
       });
     }
@@ -613,19 +617,16 @@ function normalizeSalesDataColumns(data: any[]): {
       }
     }
     
-    let totalValue = 0;
-    if (totalValueKey) {
-      const rawValue = row[totalValueKey];
-      if (typeof rawValue === 'string') {
-        totalValue = Number(rawValue.replace(/[^\d.-]/g, ''));
-      } else {
-        totalValue = Number(rawValue);
-      }
+    // Preserve the exact original value from the sales data
+    normalizedRow.totalValue = totalValueKey ? row[totalValueKey] : 0;
+    
+    // If it's a string with currency symbols, convert to number
+    if (typeof normalizedRow.totalValue === 'string') {
+      const cleanValue = normalizedRow.totalValue.replace(/[^\d.-]/g, '');
+      normalizedRow.totalValue = cleanValue ? Number(cleanValue) : 0;
     }
     
-    normalizedRow.totalValue = isNaN(totalValue) ? 0 : totalValue;
-    
-    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Sent=${normalizedRow.sent}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}`);
+    console.log(`Sales row processed: Ref=${normalizedRow.supplierRef}, Sent=${normalizedRow.sent}, Sold=${normalizedRow.sold}, Value=${normalizedRow.totalValue}, Original Value=${totalValueKey ? row[totalValueKey] : 'N/A'}`);
     
     return normalizedRow as { 
       supplierRef: string; 
