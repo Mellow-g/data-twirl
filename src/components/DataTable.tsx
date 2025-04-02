@@ -17,6 +17,7 @@ export const DataTable = ({ data }: DataTableProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [varietyFilter, setVarietyFilter] = useState<string>("all");
   const [reconciledFilter, setReconciledFilter] = useState<string>("all");
+  const [consignFilter, setConsignFilter] = useState<string>("");
   const [showGrouped, setShowGrouped] = useState<boolean>(true);
 
   const varieties = useMemo(() => {
@@ -38,7 +39,10 @@ export const DataTable = ({ data }: DataTableProps) => {
       const matchesVariety = varietyFilter === "all" || record.variety === varietyFilter;
       const matchesReconciled = reconciledFilter === "all" || 
         (reconciledFilter === "reconciled" ? record.reconciled : !record.reconciled);
-      return matchesStatus && matchesVariety && matchesReconciled;
+      const matchesConsign = !consignFilter || 
+        (record.consignNumber && record.consignNumber.toLowerCase().includes(consignFilter.toLowerCase()));
+      
+      return matchesStatus && matchesVariety && matchesReconciled && matchesConsign;
     });
     
     // Group by consignment + supplier reference combinations
@@ -131,7 +135,7 @@ export const DataTable = ({ data }: DataTableProps) => {
       
       return aValue - bValue;
     });
-  }, [data, statusFilter, varietyFilter, reconciledFilter, showGrouped]);
+  }, [data, statusFilter, varietyFilter, reconciledFilter, consignFilter, showGrouped]);
 
   const handleExport = () => {
     // Flatten grouped data for export
@@ -181,10 +185,12 @@ export const DataTable = ({ data }: DataTableProps) => {
         statusFilter={statusFilter}
         varietyFilter={varietyFilter}
         reconciledFilter={reconciledFilter}
+        consignFilter={consignFilter}
         varieties={varieties}
         onStatusChange={setStatusFilter}
         onVarietyChange={setVarietyFilter}
         onReconciledChange={setReconciledFilter}
+        onConsignChange={setConsignFilter}
         onExport={handleExport}
       />
       
