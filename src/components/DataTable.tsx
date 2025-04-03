@@ -1,4 +1,3 @@
-
 import { Table, TableBody } from "@/components/ui/table";
 import { GroupedMatchedRecord, MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
@@ -25,11 +24,9 @@ export const DataTable = ({ data }: DataTableProps) => {
     return Array.from(uniqueVarieties).filter(Boolean);
   }, [data]);
 
-  // Group records by consignment number and supplier ref
   const groupedData = useMemo(() => {
     if (!showGrouped) return data;
 
-    // First, filter the data based on user filters
     const filtered = data.filter(record => {
       const matchesStatus = 
         statusFilter === "all" || 
@@ -45,13 +42,11 @@ export const DataTable = ({ data }: DataTableProps) => {
       return matchesStatus && matchesVariety && matchesReconciled && matchesConsign;
     });
     
-    // Group by consignment + supplier reference combinations
     const groups = new Map<string, MatchedRecord[]>();
     
     filtered.forEach(record => {
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       
-      // Only group if both identifiers are present or it's worth grouping
       if ((record.consignNumber && record.supplierRef) || 
           (record.consignNumber && !record.supplierRef) || 
           (!record.consignNumber && record.supplierRef)) {
@@ -62,13 +57,10 @@ export const DataTable = ({ data }: DataTableProps) => {
       }
     });
     
-    // Convert groups to parent records with children
     const result: (GroupedMatchedRecord | MatchedRecord)[] = [];
     
-    // Process regular groups
     groups.forEach((records, key) => {
       if (records.length <= 1) {
-        // If only one record, don't create a group
         records.forEach(record => {
           result.push({...record, isChild: false});
         });
@@ -78,10 +70,8 @@ export const DataTable = ({ data }: DataTableProps) => {
       const totalCartonsSent = records.reduce((sum, r) => sum + r.cartonsSent, 0);
       const totalReceived = records.reduce((sum, r) => sum + r.received, 0);
       const totalSoldOnMarket = records.reduce((sum, r) => sum + r.soldOnMarket, 0);
-      // Ensure we're adding the exact total values from the underlying records
       const totalValue = records.reduce((sum, r) => sum + r.totalValue, 0);
       
-      // Create a parent record based on common values
       const firstRecord = records[0];
       const groupedRecord: GroupedMatchedRecord = {
         ...firstRecord,
@@ -91,7 +81,6 @@ export const DataTable = ({ data }: DataTableProps) => {
         totalReceived,
         totalSoldOnMarket,
         totalValue,
-        // Group is reconciled if totals match
         reconciled: Math.abs(totalCartonsSent - totalReceived) <= 1 && 
                    Math.abs(totalReceived - totalSoldOnMarket) <= 1,
         groupId: key
@@ -100,7 +89,6 @@ export const DataTable = ({ data }: DataTableProps) => {
       result.push(groupedRecord);
     });
     
-    // Add records that weren't grouped
     filtered.forEach(record => {
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       const inRegularGroup = (record.consignNumber || record.supplierRef) && groups.has(key);
@@ -110,23 +98,16 @@ export const DataTable = ({ data }: DataTableProps) => {
       }
     });
     
-    // Sort the result by reconciliation status
     return result.sort((a, b) => {
-      // Get status for sorting
       const getStatusSortValue = (record: MatchedRecord | GroupedMatchedRecord): number => {
-        // Reconciled status
         if (record.reconciled) return 0;
         
-        // Partial reconciliation status (only for group parents)
         if ('isGroupParent' in record && record.isGroupParent) {
-          // Check if any children are reconciled
           if (record.childRecords.some(child => child.reconciled)) return 1;
         }
         
-        // Unreconciled but matched
         if (record.status === 'Matched') return 2;
         
-        // Unmatched (lowest priority)
         return 3;
       };
       
@@ -138,7 +119,6 @@ export const DataTable = ({ data }: DataTableProps) => {
   }, [data, statusFilter, varietyFilter, reconciledFilter, consignFilter, showGrouped]);
 
   const handleExport = () => {
-    // Flatten grouped data for export
     const exportData = groupedData.flatMap(record => {
       if ('isGroupParent' in record && record.isGroupParent) {
         return record.childRecords;
@@ -221,7 +201,6 @@ export const DataTable = ({ data }: DataTableProps) => {
           <Table>
             <TableBody>
               {groupedData.map((record, index) => {
-                // Check if it's a group record
                 if ('isGroupParent' in record && record.isGroupParent) {
                   return (
                     <GroupRow
@@ -233,7 +212,6 @@ export const DataTable = ({ data }: DataTableProps) => {
                   );
                 }
                 
-                // Regular record
                 return (
                   <DataRow
                     key={`record-${index}`}
