@@ -1,3 +1,4 @@
+
 import { Table, TableBody } from "@/components/ui/table";
 import { GroupedMatchedRecord, MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
@@ -24,10 +25,9 @@ export const DataTable = ({ data }: DataTableProps) => {
     return Array.from(uniqueVarieties).filter(Boolean);
   }, [data]);
 
-  const groupedData = useMemo(() => {
-    if (!showGrouped) return data;
-
-    const filtered = data.filter(record => {
+  // First, filter the data based on user filters regardless of view mode
+  const filteredData = useMemo(() => {
+    return data.filter(record => {
       const matchesStatus = 
         statusFilter === "all" || 
         (statusFilter === "matched" && record.status === "Matched") ||
@@ -41,10 +41,14 @@ export const DataTable = ({ data }: DataTableProps) => {
       
       return matchesStatus && matchesVariety && matchesReconciled && matchesConsign;
     });
-    
+  }, [data, statusFilter, varietyFilter, reconciledFilter, consignFilter]);
+
+  const groupedData = useMemo(() => {
+    if (!showGrouped) return filteredData;
+
     const groups = new Map<string, MatchedRecord[]>();
     
-    filtered.forEach(record => {
+    filteredData.forEach(record => {
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       
       if ((record.consignNumber && record.supplierRef) || 
@@ -89,7 +93,7 @@ export const DataTable = ({ data }: DataTableProps) => {
       result.push(groupedRecord);
     });
     
-    filtered.forEach(record => {
+    filteredData.forEach(record => {
       const key = `${record.consignNumber || ''}__${record.supplierRef || ''}`;
       const inRegularGroup = (record.consignNumber || record.supplierRef) && groups.has(key);
       
@@ -116,10 +120,14 @@ export const DataTable = ({ data }: DataTableProps) => {
       
       return aValue - bValue;
     });
-  }, [data, statusFilter, varietyFilter, reconciledFilter, consignFilter, showGrouped]);
+  }, [filteredData, showGrouped]);
+
+  const displayData = useMemo(() => {
+    return showGrouped ? groupedData : filteredData;
+  }, [showGrouped, groupedData, filteredData]);
 
   const handleExport = () => {
-    const exportData = groupedData.flatMap(record => {
+    const exportData = displayData.flatMap(record => {
       if ('isGroupParent' in record && record.isGroupParent) {
         return record.childRecords;
       }
@@ -200,7 +208,7 @@ export const DataTable = ({ data }: DataTableProps) => {
         <div className="max-h-[calc(70vh-4rem)] overflow-auto">
           <Table>
             <TableBody>
-              {groupedData.map((record, index) => {
+              {displayData.map((record, index) => {
                 if ('isGroupParent' in record && record.isGroupParent) {
                   return (
                     <GroupRow
