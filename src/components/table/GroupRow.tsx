@@ -52,6 +52,8 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
         </TableCell>
         <TableCell className={`${columnClasses.variety} text-primary`}>Group ({groupRecord.childRecords.length})</TableCell>
         <TableCell className={`${columnClasses.cartonType} text-primary font-medium`}>Various</TableCell>
+        <TableCell className={`${columnClasses.orchard} text-primary`}>-</TableCell>
+        <TableCell className={`${columnClasses.consignDate} text-primary`}>-</TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalCartonsSent || 0)}</TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalReceived || 0)}</TableCell>
         <TableCell className={`${columnClasses.deviation} text-primary font-bold`}>

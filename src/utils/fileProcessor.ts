@@ -328,8 +328,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       deviationReceivedSold: received - soldOnMarket,
       totalValue,
       reconciled: cartonsSent === received && received === soldOnMarket,
-      orchard: load.orchard || '', // Include orchard from load data
-      consignmentDate: load.consignmentDate || '' // Include consignment date from load data
+      orchard: load.orchard || '', // Ensure we're using the orchard from load data
+      consignmentDate: load.consignmentDate || '' // Ensure we're using the consignment date from load data
     });
   });
 
@@ -382,7 +382,6 @@ function normalizeLoadDataColumns(data: any[]): {
   return data.map(row => {
     const normalizedRow: Record<string, any> = {};
     const keys = Object.keys(row);
-    const values = Object.values(row);
     
     const numericColumns: [string, number][] = [];
     keys.forEach(key => {
@@ -443,20 +442,19 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.variety = varietyKey ? row[varietyKey] : '';
     
-    // Improved carton type detection
+    // Carton type detection
     let cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type|pack\s*type|pallet\s*type/i.test(key));
     
     if (!cartonTypeKey) {
-      // Look for exact match with "Ctn Type"
       cartonTypeKey = keys.find(key => key.trim().toLowerCase() === 'ctn type');
     }
     
     if (!cartonTypeKey) {
       cartonTypeKey = keys.find(key => {
         const value = String(row[key]);
-        return /^C\d+[A-Z]?$/i.test(value.trim()) || // Pattern like C15A
+        return /^C\d+[A-Z]?$/i.test(value.trim()) || 
                /^[A-Z]\d+[A-Z]?$/i.test(value.trim()) ||
-               /^[A-Z]{1,2}\d{1,2}$/i.test(value.trim()); // Pattern like T12
+               /^[A-Z]{1,2}\d{1,2}$/i.test(value.trim());
       });
     }
     
@@ -470,21 +468,31 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
     
-    // Find orchard - first by column K (which is typically index 10 in 0-based arrays)
-    // or by looking for a column with "orchard" in the name
-    let orchardKey = keys[10]; // Column K
+    // Updated Orchard detection - specifically look for column K (index 10 in 0-based arrays)
+    // This is specifically to find the orchard data from Column K in the load report
+    let orchardKey = '';
+    if (keys.length > 10) { // Make sure column K exists
+      orchardKey = keys[10]; // Column K is index 10 (0-based)
+    }
+    
+    // If not found in column K, try to find by name
     if (!orchardKey || !row[orchardKey]) {
       orchardKey = keys.find(key => /orchard|farm|producer|grower/i.test(key));
     }
+    
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
-    // Find consignment date - first by column Ai (which is typically index 34 in 0-based arrays)
-    // or by looking for a column with "consign" and "date" in the name
-    let consignmentDateKey = keys[34]; // Column Ai
+    // Updated Consignment Date detection - specifically look for column Ai (index 34 in 0-based arrays)
+    // This is specifically to find the consignment date from Column Ai in the load report
+    let consignmentDateKey = '';
+    if (keys.length > 34) { // Make sure column Ai exists
+      consignmentDateKey = keys[34]; // Column Ai is index 34 (0-based)
+    }
+    
+    // If not found in column Ai, try to find by name
     if (!consignmentDateKey || !row[consignmentDateKey]) {
       consignmentDateKey = keys.find(key => /consign.*date|date.*consign|load.*date|shipment.*date/i.test(key));
       
-      // If still not found, look for any date column
       if (!consignmentDateKey) {
         consignmentDateKey = keys.find(key => /date/i.test(key) && !/delivery|arrival|receipt/i.test(key));
       }
@@ -492,8 +500,7 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.consignmentDate = consignmentDateKey && row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
     
-    // Add debugging for new fields
-    console.log(`Row processed with new fields: Orchard=${normalizedRow.orchard}, ConsignmentDate=${normalizedRow.consignmentDate}`);
+    console.log(`Normalized load data: Orchard from column ${orchardKey}: ${normalizedRow.orchard}, Consignment Date from column ${consignmentDateKey}: ${normalizedRow.consignmentDate}`);
     
     return normalizedRow as { 
       consign: string; 
