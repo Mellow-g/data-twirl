@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -342,6 +341,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     // Format the consignment date to YYYY/MM/DD
     const formattedConsignmentDate = formatDate(load.consignmentDate || '');
 
+    // Debug log to check what consignment date we're using
+    console.log(`Record ${consignNumber} - Original Date: ${load.consignmentDate}, Formatted: ${formattedConsignmentDate}`);
+
     matchedRecords.push({
       consignNumber,
       supplierRef: matchedSale ? matchedSale.supplierRef || '' : '',
@@ -406,7 +408,16 @@ function normalizeLoadDataColumns(data: any[]): {
 }[] {
   console.log('Normalizing load data columns with flexible approach...');
   
-  return data.map(row => {
+  // First, try to detect the column headers and log them
+  const sampleRow = data[0] || {};
+  const keys = Object.keys(sampleRow);
+  console.log('Available columns in load data:', keys);
+  
+  // Look specifically for any columns that might contain "date" or "consign"
+  const possibleDateColumns = keys.filter(key => /date|consign/i.test(key));
+  console.log('Possible date columns:', possibleDateColumns);
+  
+  return data.map((row, rowIndex) => {
     const normalizedRow: Record<string, any> = {};
     const keys = Object.keys(row);
     
@@ -496,7 +507,6 @@ function normalizeLoadDataColumns(data: any[]): {
     normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
     
     // Updated Orchard detection - specifically look for column K (index 10 in 0-based arrays)
-    // This is specifically to find the orchard data from Column K in the load report
     let orchardKey = '';
     if (keys.length > 10) { // Make sure column K exists
       orchardKey = keys[10]; // Column K is index 10 (0-based)
@@ -509,25 +519,70 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
-    // Updated Consignment Date detection - specifically look for column Ai (index 34 in 0-based arrays)
-    // This is specifically to find the consignment date from Column Ai in the load report
-    let consignmentDateKey = '';
-    if (keys.length > 34) { // Make sure column Ai exists
-      consignmentDateKey = keys[34]; // Column Ai is index 34 (0-based)
+    // Improved Consignment Date detection logic
+    
+    // We'll first check some common columns that might contain consignment date
+    // Look for any columns with "consign" and "date" in the name first
+    let consignmentDateKey = keys.find(key => /consign.*date|date.*consign|consignment.*date/i.test(key));
+    
+    if (!consignmentDateKey) {
+      // Look for other date-related columns that aren't delivery or arrival dates
+      consignmentDateKey = keys.find(key => /\bdate\b/i.test(key) && !/delivery|arrival|receipt/i.test(key));
     }
     
-    // If not found in column Ai, try to find by name
-    if (!consignmentDateKey || !row[consignmentDateKey]) {
-      consignmentDateKey = keys.find(key => /consign.*date|date.*consign|load.*date|shipment.*date/i.test(key));
+    // If we still haven't found it, try a few specific columns in the spreadsheet
+    if (!consignmentDateKey) {
+      // Try column index 34 (Column AI in Excel)
+      if (keys.length > 34) {
+        consignmentDateKey = keys[34];
+      }
       
-      if (!consignmentDateKey) {
-        consignmentDateKey = keys.find(key => /date/i.test(key) && !/delivery|arrival|receipt/i.test(key));
+      // Also check column index 9 (Column J in Excel), which is another common location
+      if (!consignmentDateKey && keys.length > 9) {
+        const tempKey = keys[9];
+        const tempValue = row[tempKey];
+        if (tempValue && typeof tempValue === 'string' && /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(tempValue)) {
+          consignmentDateKey = tempKey;
+        }
       }
     }
     
-    normalizedRow.consignmentDate = consignmentDateKey && row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
+    // Last resort: check if any value looks like a date and is found in a column with "date" in its name
+    if (!consignmentDateKey) {
+      const datePattern = /\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/;
+      for (const key of keys) {
+        if (/date/i.test(key) && row[key] && datePattern.test(String(row[key]))) {
+          consignmentDateKey = key;
+          break;
+        }
+      }
+    }
     
-    console.log(`Normalized load data: Orchard from column ${orchardKey}: ${normalizedRow.orchard}, Consignment Date from column ${consignmentDateKey}: ${normalizedRow.consignmentDate}`);
+    // Check any Excel serial dates (numbers that might represent dates)
+    if (!consignmentDateKey) {
+      for (const key of keys) {
+        const value = row[key];
+        if (typeof value === 'number' && value > 40000 && value < 50000) {
+          // Excel date serial numbers typically fall in this range
+          consignmentDateKey = key;
+          break;
+        }
+      }
+    }
+    
+    if (consignmentDateKey) {
+      normalizedRow.consignmentDate = row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
+      
+      // Add debug log for the first few rows to check what we're capturing
+      if (rowIndex < 3) {
+        console.log(`Row ${rowIndex}: Found consignment date in column "${consignmentDateKey}": ${normalizedRow.consignmentDate}`);
+      }
+    } else {
+      normalizedRow.consignmentDate = '';
+      if (rowIndex < 3) {
+        console.log(`Row ${rowIndex}: Could not find consignment date column.`);
+      }
+    }
     
     return normalizedRow as { 
       consign: string; 
