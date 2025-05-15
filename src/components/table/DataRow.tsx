@@ -30,6 +30,8 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       </TableCell>
       <TableCell className={`${columnClasses.variety} text-primary`}>{record.variety}</TableCell>
       <TableCell className={`${columnClasses.cartonType} text-primary font-medium`}>{record.cartonType || "-"}</TableCell>
+      <TableCell className={`${columnClasses.orchard} text-primary`}>{record.orchard || "-"}</TableCell>
+      <TableCell className={`${columnClasses.consignDate} text-primary`}>{record.consignmentDate || "-"}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.cartonsSent)}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.received)}</TableCell>
       <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>

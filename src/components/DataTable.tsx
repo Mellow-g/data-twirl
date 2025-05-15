@@ -1,4 +1,3 @@
-
 import { Table, TableBody } from "@/components/ui/table";
 import { GroupedMatchedRecord, MatchedRecord } from "@/types";
 import { generateExcel } from "@/utils/fileProcessor";
@@ -161,6 +160,8 @@ export const DataTable = ({ data }: DataTableProps) => {
     status: "w-[100px] px-2 text-center",
     variety: "w-[100px] px-2 text-center",
     cartonType: "w-[100px] px-2 text-center",
+    orchard: "w-[100px] px-2 text-left",
+    consignDate: "w-[120px] px-2 text-center",
     numbers: "w-[100px] px-2 text-right tabular-nums",
     deviation: "w-[120px] px-2 text-right tabular-nums",
     value: "w-[120px] px-2 text-right tabular-nums",

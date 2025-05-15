@@ -25,6 +25,12 @@ export const TableHeader = ({ columnClasses }: TableHeaderProps) => {
         <TableHead className={`${columnClasses.cartonType} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
           Carton Type
         </TableHead>
+        <TableHead className={`${columnClasses.orchard} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+          Orchard
+        </TableHead>
+        <TableHead className={`${columnClasses.consignDate} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+          Consign Date
+        </TableHead>
         <TableHead className={`${columnClasses.numbers} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
           Cartons Sent
         </TableHead>
