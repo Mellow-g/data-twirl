@@ -22,15 +22,12 @@ export function formatDate(dateString: string): string {
   if (!dateString) return '';
   
   try {
-    // Try to parse the date string
     const date = new Date(dateString);
     
-    // Check if the date is valid
     if (isNaN(date.getTime())) {
-      return dateString; // Return the original string if parsing fails
+      return dateString;
     }
     
-    // Format as YYYY/MM/DD
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -55,7 +52,7 @@ export async function processFile(file: File): Promise<any[]> {
           throw new Error('No sheets found in the file');
         }
         
-        let sheetName = workbook.SheetNames[0]; // Default to first sheet
+        let sheetName = workbook.SheetNames[0];
         
         const palletstockSheetIndex = workbook.SheetNames.findIndex(
           name => name.toLowerCase().includes('palletstock')
@@ -240,7 +237,7 @@ function inferFileType(data: any[]): 'load' | 'sales' | 'unknown' {
   if (salesScores > loadScores && salesScores > 5) return 'sales';
   
   if (hasConsignmentPattern(sampleRows)) return 'load';
-  if (hasMonetaryPattern(sampleRows)) return 'sales';
+  if (hasMoneyPattern(sampleRows)) return 'sales';
   
   return 'unknown';
 }
@@ -291,7 +288,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
-  // Create a map of sales data keyed by the last 4 digits of supplier reference
   const salesByLast4 = new Map();
   
   salesDataMap.forEach(sale => {
@@ -305,9 +301,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
-  // Process load data first
   const matchedRecords: MatchedRecord[] = [];
-  const processedSales = new Set(); // Track which sales have been matched
+  const processedSales = new Set();
 
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
@@ -317,17 +312,14 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     let matchedSale = null;
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
-      // Try to find best match based on carton count
       matchedSale = possibleSales.find(sale => 
         Number(sale.sent) === cartonsSent
       );
       
-      // If no exact match found, use the first one if any exist
       if (!matchedSale && possibleSales.length > 0) {
         matchedSale = possibleSales[0];
       }
       
-      // Mark this sale as processed if we found a match
       if (matchedSale) {
         processedSales.add(matchedSale);
       }
@@ -335,13 +327,10 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
     const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
-    // Use the exact value from the sales data without any transformation
     const totalValue = matchedSale ? matchedSale.totalValue || 0 : 0;
     
-    // Format the consignment date to YYYY/MM/DD
     const formattedConsignmentDate = formatDate(load.consignmentDate || '');
 
-    // Debug log to check what consignment date we're using
     console.log(`Record ${consignNumber} - Original Date: ${load.consignmentDate}, Formatted: ${formattedConsignmentDate}`);
 
     matchedRecords.push({
@@ -362,9 +351,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
-  // Now process any unmatched sales data
   salesDataMap.forEach(sale => {
-    // Skip if this sale was already matched to a load
     if (processedSales.has(sale)) {
       return;
     }
@@ -373,7 +360,6 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     if (isValidSupplierRef(supplierRef)) {
       const received = Number(sale.sent) || 0;
       const soldOnMarket = Number(sale.sold) || 0;
-      // Use the exact value from sales data
       const totalValue = sale.totalValue || 0;
 
       matchedRecords.push({
@@ -389,8 +375,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         deviationReceivedSold: received - soldOnMarket,
         totalValue,
         reconciled: false,
-        orchard: '', // Empty for sales-only records
-        consignmentDate: '' // Empty for sales-only records
+        orchard: '', 
+        consignmentDate: ''
       });
     }
   });
@@ -408,14 +394,15 @@ function normalizeLoadDataColumns(data: any[]): {
 }[] {
   console.log('Normalizing load data columns with flexible approach...');
   
-  // First, try to detect the column headers and log them
   const sampleRow = data[0] || {};
   const keys = Object.keys(sampleRow);
   console.log('Available columns in load data:', keys);
   
-  // Look specifically for any columns that might contain "date" or "consign"
-  const possibleDateColumns = keys.filter(key => /date|consign/i.test(key));
-  console.log('Possible date columns:', possibleDateColumns);
+  if (keys.length > 37) {
+    console.log('Column AL (index 37) content sample:', 
+      data.slice(0, 3).map(row => row[keys[37]])
+    );
+  }
   
   return data.map((row, rowIndex) => {
     const normalizedRow: Record<string, any> = {};
@@ -480,7 +467,6 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.variety = varietyKey ? row[varietyKey] : '';
     
-    // Carton type detection
     let cartonTypeKey = keys.find(key => /ctn\s*type|box\s*type|package\s*type|pack\s*type|pallet\s*type/i.test(key));
     
     if (!cartonTypeKey) {
@@ -506,76 +492,36 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
     
-    // Updated Orchard detection - specifically look for column K (index 10 in 0-based arrays)
     let orchardKey = '';
-    if (keys.length > 10) { // Make sure column K exists
-      orchardKey = keys[10]; // Column K is index 10 (0-based)
+    if (keys.length > 10) {
+      orchardKey = keys[10];
     }
     
-    // If not found in column K, try to find by name
     if (!orchardKey || !row[orchardKey]) {
       orchardKey = keys.find(key => /orchard|farm|producer|grower/i.test(key));
     }
     
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
-    // Improved Consignment Date detection logic
-    
-    // We'll first check some common columns that might contain consignment date
-    // Look for any columns with "consign" and "date" in the name first
-    let consignmentDateKey = keys.find(key => /consign.*date|date.*consign|consignment.*date/i.test(key));
-    
-    if (!consignmentDateKey) {
-      // Look for other date-related columns that aren't delivery or arrival dates
-      consignmentDateKey = keys.find(key => /\bdate\b/i.test(key) && !/delivery|arrival|receipt/i.test(key));
+    let consignmentDateKey = null;
+    if (keys.length > 37) {
+      consignmentDateKey = keys[37];
+      console.log(`Row ${rowIndex < 3 ? rowIndex : 'later'}: Using Column AL for consignment date: ${row[consignmentDateKey]}`);
     }
     
-    // If we still haven't found it, try a few specific columns in the spreadsheet
-    if (!consignmentDateKey) {
-      // Try column index 34 (Column AI in Excel)
-      if (keys.length > 34) {
-        consignmentDateKey = keys[34];
-      }
+    if (!consignmentDateKey || !row[consignmentDateKey]) {
+      consignmentDateKey = keys.find(key => /consign.*date|date.*consign|consignment.*date/i.test(key));
       
-      // Also check column index 9 (Column J in Excel), which is another common location
-      if (!consignmentDateKey && keys.length > 9) {
-        const tempKey = keys[9];
-        const tempValue = row[tempKey];
-        if (tempValue && typeof tempValue === 'string' && /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(tempValue)) {
-          consignmentDateKey = tempKey;
-        }
-      }
-    }
-    
-    // Last resort: check if any value looks like a date and is found in a column with "date" in its name
-    if (!consignmentDateKey) {
-      const datePattern = /\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/;
-      for (const key of keys) {
-        if (/date/i.test(key) && row[key] && datePattern.test(String(row[key]))) {
-          consignmentDateKey = key;
-          break;
-        }
-      }
-    }
-    
-    // Check any Excel serial dates (numbers that might represent dates)
-    if (!consignmentDateKey) {
-      for (const key of keys) {
-        const value = row[key];
-        if (typeof value === 'number' && value > 40000 && value < 50000) {
-          // Excel date serial numbers typically fall in this range
-          consignmentDateKey = key;
-          break;
-        }
+      if (!consignmentDateKey) {
+        consignmentDateKey = keys.find(key => /\bdate\b/i.test(key) && !/delivery|arrival|receipt/i.test(key));
       }
     }
     
     if (consignmentDateKey) {
       normalizedRow.consignmentDate = row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
       
-      // Add debug log for the first few rows to check what we're capturing
       if (rowIndex < 3) {
-        console.log(`Row ${rowIndex}: Found consignment date in column "${consignmentDateKey}": ${normalizedRow.consignmentDate}`);
+        console.log(`Row ${rowIndex}: Found consignment date in column "${consignmentDateKey}" (${keys.indexOf(consignmentDateKey)}): ${normalizedRow.consignmentDate}`);
       }
     } else {
       normalizedRow.consignmentDate = '';
@@ -626,8 +572,8 @@ function normalizeSalesDataColumns(data: any[]): {
     if (!supplierRefKey) {
       supplierRefKey = keys.find(key => {
         const value = String(row[key]);
-        return (/^\d{6,}$/.test(value) || // Pure numbers
-               /^[a-z][0-9][a-z][0-9]{5,}$/i.test(value)) && // Patterns like Z1C0801483
+        return (/^\d{6,}$/.test(value) || 
+               /^[a-z][0-9][a-z][0-9]{5,}$/i.test(value)) && 
                !/date|time|value|amount|price/i.test(key);
       });
     }
@@ -643,12 +589,10 @@ function normalizeSalesDataColumns(data: any[]): {
     
     normalizedRow.supplierRef = supplierRefKey ? row[supplierRefKey] : '';
     
-    // Look for the "sent" field first (this is new)
     let sentKey = keys.find(key => 
       /sent|send|cartons\s*sent|ctns\s*sent|sent\s*qty/i.test(key)
     );
     
-    // If no "sent" field found, look for "received" as a fallback
     if (!sentKey) {
       sentKey = keys.find(key => 
         /received|rec\s*qty|receipt|delivered|delivery|del\s*qty/i.test(key)
@@ -714,8 +658,8 @@ function normalizeSalesDataColumns(data: any[]): {
     if (!totalValueKey) {
       totalValueKey = keys.find(key => {
         const value = String(row[key]);
-        return (/^\$|R|ZAR|£|\u20AC/.test(value) || // Has currency symbol
-               /\.\d{2}$/.test(value)) && // Ends with .XX (cents)
+        return (/^\$|R|ZAR|£|\u20AC/.test(value) || 
+               /\.\d{2}$/.test(value)) && 
                !/date|time/i.test(key);
       });
     }
@@ -730,10 +674,8 @@ function normalizeSalesDataColumns(data: any[]): {
       }
     }
     
-    // Preserve the exact original value from the sales data
     normalizedRow.totalValue = totalValueKey ? row[totalValueKey] : 0;
     
-    // If it's a string with currency symbols, convert to number
     if (typeof normalizedRow.totalValue === 'string') {
       const cleanValue = normalizedRow.totalValue.replace(/[^\d.-]/g, '');
       normalizedRow.totalValue = cleanValue ? Number(cleanValue) : 0;
@@ -751,7 +693,6 @@ function normalizeSalesDataColumns(data: any[]): {
 }
 
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
-  // Extract just the base records (not children)
   const baseRecords = data.filter(record => !record.isChild);
   
   const matchedRecords = baseRecords.filter(record => record.status === 'Matched');
@@ -793,7 +734,7 @@ export function generateExcel(data: MatchedRecord[]): void {
   const ws = XLSX.utils.json_to_sheet(exportData);
   
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  const totalValueCol = 'M'; // Updated column letter since we added two new columns
+  const totalValueCol = 'M';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
     const cell = totalValueCol + (row + 1);
     if (ws[cell]) {
