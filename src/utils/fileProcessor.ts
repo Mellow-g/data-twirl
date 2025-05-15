@@ -327,7 +327,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       soldOnMarket,
       deviationReceivedSold: received - soldOnMarket,
       totalValue,
-      reconciled: cartonsSent === received && received === soldOnMarket
+      reconciled: cartonsSent === received && received === soldOnMarket,
+      orchard: load.orchard || '', // Include orchard from load data
+      consignmentDate: load.consignmentDate || '' // Include consignment date from load data
     });
   });
 
@@ -357,7 +359,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         soldOnMarket,
         deviationReceivedSold: received - soldOnMarket,
         totalValue,
-        reconciled: false
+        reconciled: false,
+        orchard: '', // Empty for sales-only records
+        consignmentDate: '' // Empty for sales-only records
       });
     }
   });
@@ -369,7 +373,9 @@ function normalizeLoadDataColumns(data: any[]): {
   consign: string; 
   cartons: number; 
   variety: string; 
-  cartonType: string 
+  cartonType: string; 
+  orchard: string; 
+  consignmentDate: string;
 }[] {
   console.log('Normalizing load data columns with flexible approach...');
   
@@ -464,20 +470,38 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.cartonType = cartonTypeKey ? row[cartonTypeKey] : '';
     
-    // Add debugging for carton type
-    console.log(`Row processed: Consign=${normalizedRow.consign}, Cartons=${normalizedRow.cartons}, Variety=${normalizedRow.variety}, CartonType=${normalizedRow.cartonType}, Found cartonTypeKey=${cartonTypeKey}`);
-    
-    // Log all available keys to help debugging
-    if (!normalizedRow.cartonType) {
-      console.log('Available keys for carton type detection:', keys);
-      console.log('Row data sample:', JSON.stringify(row));
+    // Find orchard - first by column K (which is typically index 10 in 0-based arrays)
+    // or by looking for a column with "orchard" in the name
+    let orchardKey = keys[10]; // Column K
+    if (!orchardKey || !row[orchardKey]) {
+      orchardKey = keys.find(key => /orchard|farm|producer|grower/i.test(key));
     }
+    normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
+    
+    // Find consignment date - first by column Ai (which is typically index 34 in 0-based arrays)
+    // or by looking for a column with "consign" and "date" in the name
+    let consignmentDateKey = keys[34]; // Column Ai
+    if (!consignmentDateKey || !row[consignmentDateKey]) {
+      consignmentDateKey = keys.find(key => /consign.*date|date.*consign|load.*date|shipment.*date/i.test(key));
+      
+      // If still not found, look for any date column
+      if (!consignmentDateKey) {
+        consignmentDateKey = keys.find(key => /date/i.test(key) && !/delivery|arrival|receipt/i.test(key));
+      }
+    }
+    
+    normalizedRow.consignmentDate = consignmentDateKey && row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
+    
+    // Add debugging for new fields
+    console.log(`Row processed with new fields: Orchard=${normalizedRow.orchard}, ConsignmentDate=${normalizedRow.consignmentDate}`);
     
     return normalizedRow as { 
       consign: string; 
       cartons: number; 
       variety: string; 
-      cartonType: string 
+      cartonType: string; 
+      orchard: string; 
+      consignmentDate: string;
     };
   });
 }
@@ -666,6 +690,8 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
+    'Orchard': item.orchard || '', // Add orchard to export
+    'Consignment Date': item.consignmentDate || '', // Add consignment date to export
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
     'Deviation Sent/Received': item.deviationSentReceived,
@@ -678,7 +704,7 @@ export function generateExcel(data: MatchedRecord[]): void {
   const ws = XLSX.utils.json_to_sheet(exportData);
   
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  const totalValueCol = 'L';
+  const totalValueCol = 'M'; // Updated column letter since we added two new columns
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
     const cell = totalValueCol + (row + 1);
     if (ws[cell]) {

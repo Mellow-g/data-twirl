@@ -18,6 +18,8 @@ export interface MatchedRecord {
   deviationReceivedSold: number;
   totalValue: number;
   reconciled: boolean;
+  orchard?: string; // Added orchard field
+  consignmentDate?: string; // Added consignment date field
   // Fields for grouping
   isGroupParent?: boolean;
   groupId?: string;
