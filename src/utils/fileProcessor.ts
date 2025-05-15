@@ -19,6 +19,30 @@ export function formatNumber(value: number, type: 'number' | 'currency' | 'perce
   return new Intl.NumberFormat('en-AU').format(value);
 }
 
+export function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    // Try to parse the date string
+    const date = new Date(dateString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return dateString; // Return the original string if parsing fails
+    }
+    
+    // Format as YYYY/MM/DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}/${month}/${day}`;
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return dateString;
+  }
+}
+
 export async function processFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -314,6 +338,9 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
     // Use the exact value from the sales data without any transformation
     const totalValue = matchedSale ? matchedSale.totalValue || 0 : 0;
+    
+    // Format the consignment date to YYYY/MM/DD
+    const formattedConsignmentDate = formatDate(load.consignmentDate || '');
 
     matchedRecords.push({
       consignNumber,
@@ -328,8 +355,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       deviationReceivedSold: received - soldOnMarket,
       totalValue,
       reconciled: cartonsSent === received && received === soldOnMarket,
-      orchard: load.orchard || '', // Ensure we're using the orchard from load data
-      consignmentDate: load.consignmentDate || '' // Ensure we're using the consignment date from load data
+      orchard: load.orchard || '', 
+      consignmentDate: formattedConsignmentDate
     });
   });
 
@@ -697,8 +724,8 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
-    'Orchard': item.orchard || '', // Add orchard to export
-    'Consignment Date': item.consignmentDate || '', // Add consignment date to export
+    'Orchard': item.orchard || '', 
+    'Consignment Date': item.consignmentDate || '', 
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
     'Deviation Sent/Received': item.deviationSentReceived,
