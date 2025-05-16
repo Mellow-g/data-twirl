@@ -22,10 +22,20 @@ export function formatDate(dateString: string): string {
   if (!dateString) return '';
   
   try {
+    // Check if the date is a number (Excel serial date)
+    if (!isNaN(Number(dateString))) {
+      // Convert Excel serial date to JavaScript Date
+      const excelDate = XLSX.SSF.parse_date_code(Number(dateString));
+      if (excelDate) {
+        return `${excelDate.y}/${String(excelDate.m).padStart(2, '0')}/${String(excelDate.d).padStart(2, '0')}`;
+      }
+    }
+    
+    // Try handling as a regular date string
     const date = new Date(dateString);
     
     if (isNaN(date.getTime())) {
-      return dateString;
+      return dateString; // Return original if parsing fails
     }
     
     const year = date.getFullYear();
@@ -398,7 +408,7 @@ function normalizeLoadDataColumns(data: any[]): {
   const keys = Object.keys(sampleRow);
   console.log('Available columns in load data:', keys);
   
-  // Now looking for consignment date in Column AI (index 34) instead of AL (index 37)
+  // Looking for consignment date in Column AI (index 34)
   if (keys.length > 34) {
     console.log('Column AI (index 34) content sample:', 
       data.slice(0, 3).map(row => row[keys[34]])
@@ -504,32 +514,39 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
-    // Updated to use column AI (index 34) instead of AL (index 37) for consignment date
-    let consignmentDateKey = null;
+    // Explicitly get consignment date from column AI (index 34)
     if (keys.length > 34) {
-      consignmentDateKey = keys[34];
-      console.log(`Row ${rowIndex < 3 ? rowIndex : 'later'}: Using Column AI (index 34) for consignment date: ${row[consignmentDateKey]}`);
-    }
-    
-    if (!consignmentDateKey || !row[consignmentDateKey]) {
-      consignmentDateKey = keys.find(key => /consign.*date|date.*consign|consignment.*date/i.test(key));
+      const aiColumnKey = keys[34];
+      const rawValue = row[aiColumnKey];
+      
+      if (rawValue !== undefined) {
+        normalizedRow.consignmentDate = rawValue;
+        
+        if (rowIndex < 3) {
+          console.log(`Row ${rowIndex}: Found consignment date in column AI (index 34): ${rawValue} (type: ${typeof rawValue})`);
+        }
+      } else {
+        normalizedRow.consignmentDate = '';
+        if (rowIndex < 3) {
+          console.log(`Row ${rowIndex}: No value in column AI (index 34)`);
+        }
+      }
+    } else {
+      // Fallback to searching for date columns if index 34 doesn't exist
+      let consignmentDateKey = keys.find(key => /consign.*date|date.*consign|consignment.*date/i.test(key));
       
       if (!consignmentDateKey) {
         consignmentDateKey = keys.find(key => /\bdate\b/i.test(key) && !/delivery|arrival|receipt/i.test(key));
       }
+      
+      normalizedRow.consignmentDate = consignmentDateKey && row[consignmentDateKey] ? row[consignmentDateKey] : '';
     }
     
-    if (consignmentDateKey) {
-      normalizedRow.consignmentDate = row[consignmentDateKey] ? String(row[consignmentDateKey]) : '';
-      
-      if (rowIndex < 3) {
-        console.log(`Row ${rowIndex}: Found consignment date in column "${consignmentDateKey}" (${keys.indexOf(consignmentDateKey)}): ${normalizedRow.consignmentDate}`);
-      }
-    } else {
-      normalizedRow.consignmentDate = '';
-      if (rowIndex < 3) {
-        console.log(`Row ${rowIndex}: Could not find consignment date column.`);
-      }
+    // Format the consignment date properly before returning
+    if (normalizedRow.consignmentDate) {
+      const formattedDate = formatDate(normalizedRow.consignmentDate);
+      console.log(`Row ${rowIndex < 3 ? rowIndex : 'later'}: Original date: ${normalizedRow.consignmentDate}, Formatted: ${formattedDate}`);
+      normalizedRow.consignmentDate = formattedDate;
     }
     
     return normalizedRow as { 
