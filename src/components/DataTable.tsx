@@ -154,18 +154,19 @@ export const DataTable = ({ data }: DataTableProps) => {
     return 'hover:bg-card/50';
   };
 
+  // Updated column classes to make columns more proportional and fill the screen
   const columnClasses: ColumnClasses = {
-    consign: "w-[150px] px-2 text-left",
-    supplier: "w-[150px] px-2 text-left",
-    status: "w-[100px] px-2 text-center",
-    variety: "w-[100px] px-2 text-center",
-    cartonType: "w-[100px] px-2 text-center",
-    orchard: "w-[100px] px-2 text-left",
-    consignDate: "w-[120px] px-2 text-center",
-    numbers: "w-[100px] px-2 text-right tabular-nums",
-    deviation: "w-[120px] px-2 text-right tabular-nums",
-    value: "w-[120px] px-2 text-right tabular-nums",
-    reconciled: "w-[100px] px-2 text-center"
+    consign: "w-[120px] px-1 text-left",
+    supplier: "w-[120px] px-1 text-left",
+    status: "w-[90px] px-1 text-center",
+    variety: "w-[90px] px-1 text-center",
+    cartonType: "w-[80px] px-1 text-center",
+    orchard: "w-[100px] px-1 text-left",
+    consignDate: "w-[110px] px-1 text-center",
+    numbers: "w-[90px] px-1 text-right tabular-nums",
+    deviation: "w-[100px] px-1 text-right tabular-nums",
+    value: "w-[120px] px-1 text-right tabular-nums",
+    reconciled: "w-[90px] px-1 text-center"
   };
 
   return (
@@ -199,15 +200,17 @@ export const DataTable = ({ data }: DataTableProps) => {
         </span>
       </div>
 
-      <div className="rounded-md border border-primary/20 bg-[#1A1F2C]">
+      {/* Updated container styles to use full width and height */}
+      <div className="rounded-md border border-primary/20 bg-[#1A1F2C] w-full">
         <div className="border-b border-primary/20 sticky top-0 z-10">
-          <Table>
+          <Table className="w-full">
             <TableHeader columnClasses={columnClasses} />
           </Table>
         </div>
 
-        <div className="max-h-[calc(70vh-4rem)] overflow-auto">
-          <Table>
+        {/* Increased height to use more screen space */}
+        <div className="max-h-[calc(85vh-5rem)] overflow-auto">
+          <Table className="w-full table-fixed">
             <TableBody>
               {displayData.map((record, index) => {
                 if ('isGroupParent' in record && record.isGroupParent) {
