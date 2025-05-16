@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -237,7 +238,7 @@ function inferFileType(data: any[]): 'load' | 'sales' | 'unknown' {
   if (salesScores > loadScores && salesScores > 5) return 'sales';
   
   if (hasConsignmentPattern(sampleRows)) return 'load';
-  if (hasMoneyPattern(sampleRows)) return 'sales';
+  if (hasMonetaryPattern(sampleRows)) return 'sales';
   
   return 'unknown';
 }
