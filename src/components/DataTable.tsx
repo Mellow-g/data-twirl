@@ -154,19 +154,19 @@ export const DataTable = ({ data }: DataTableProps) => {
     return 'hover:bg-card/50';
   };
 
-  // Updated column classes to make columns more proportional and fill the screen
+  // Improved column classes to ensure proper alignment and maximize space usage
   const columnClasses: ColumnClasses = {
-    consign: "w-[120px] px-1 text-left",
-    supplier: "w-[120px] px-1 text-left",
-    status: "w-[90px] px-1 text-center",
-    variety: "w-[90px] px-1 text-center",
-    cartonType: "w-[80px] px-1 text-center",
-    orchard: "w-[100px] px-1 text-left",
-    consignDate: "w-[110px] px-1 text-center",
-    numbers: "w-[90px] px-1 text-right tabular-nums",
-    deviation: "w-[100px] px-1 text-right tabular-nums",
-    value: "w-[120px] px-1 text-right tabular-nums",
-    reconciled: "w-[90px] px-1 text-center"
+    consign: "w-[130px] px-2 text-left",
+    supplier: "w-[130px] px-2 text-left",
+    status: "w-[100px] px-2 text-center",
+    variety: "w-[100px] px-2 text-center",
+    cartonType: "w-[100px] px-2 text-center",
+    orchard: "w-[100px] px-2 text-left",
+    consignDate: "w-[120px] px-2 text-center",
+    numbers: "w-[100px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
+    deviation: "w-[110px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
+    value: "w-[130px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
+    reconciled: "w-[100px] px-2 text-center"
   };
 
   return (
@@ -200,16 +200,17 @@ export const DataTable = ({ data }: DataTableProps) => {
         </span>
       </div>
 
-      {/* Updated container styles to use full width and height */}
-      <div className="rounded-md border border-primary/20 bg-[#1A1F2C] w-full">
-        <div className="border-b border-primary/20 sticky top-0 z-10">
-          <Table className="w-full">
+      {/* Maximized container width and removed padding to use entire screen space */}
+      <div className="rounded-md border border-primary/20 bg-[#1A1F2C] w-full overflow-hidden">
+        {/* Ensure header is sticky and correctly aligned */}
+        <div className="border-b border-primary/20 sticky top-0 z-10 bg-[#1A1F2C]">
+          <Table className="w-full table-fixed">
             <TableHeader columnClasses={columnClasses} />
           </Table>
         </div>
 
-        {/* Increased height to use more screen space */}
-        <div className="max-h-[calc(85vh-5rem)] overflow-auto">
+        {/* Increased height to use more vertical space */}
+        <div className="max-h-[calc(90vh-5rem)] overflow-auto">
           <Table className="w-full table-fixed">
             <TableBody>
               {displayData.map((record, index) => {

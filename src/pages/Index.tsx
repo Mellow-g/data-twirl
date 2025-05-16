@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { StatsCard } from '@/components/StatsCard';
@@ -111,21 +112,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="relative bg-black/90 py-16 mb-8">
+      <div className="relative bg-black/90 py-12 mb-6">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501854140801-50d01698950b')] bg-cover bg-center opacity-20" />
         <div className="container relative z-10 mx-auto text-center">
-          <Building2 className="w-16 h-16 mx-auto mb-4 text-primary animate-pulse" />
-          <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">
+          <Building2 className="w-12 h-12 mx-auto mb-3 text-primary animate-pulse" />
+          <h1 className="text-3xl md:text-4xl font-bold text-primary mb-2">
             Normat Farms
           </h1>
-          <p className="text-lg text-primary/80 max-w-2xl mx-auto">
+          <p className="text-base text-primary/80 max-w-2xl mx-auto">
             Advanced Data Analysis and Reporting System
           </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 space-y-8">
-        <div className="grid gap-6 md:grid-cols-2 bg-card rounded-lg p-6 shadow-lg">
+      <div className="container mx-auto px-2 space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 bg-card rounded-lg p-4 shadow-lg">
           <FileUpload
             type="load"
             onFileSelect={handleFileSelect}
@@ -151,20 +152,20 @@ const Index = () => {
             size="lg"
             onClick={handleAnalyze}
             disabled={!loadFile || !salesFile || isProcessing}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-6 text-lg shadow-lg transition-all hover:scale-105"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-5 text-lg shadow-lg transition-all hover:scale-105"
           >
             {isProcessing ? "Processing..." : "Analyse Data"}
           </Button>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
           {statistics && (
             <div className="transform hover:scale-[1.01] transition-transform">
               <StatsCard stats={statistics} />
             </div>
           )}
           {matchedData && (
-            <div className="bg-card rounded-lg shadow-lg p-6">
+            <div className="bg-card rounded-lg shadow-lg p-4 w-full overflow-hidden">
               <div className="flex justify-end mb-4">
                 <Button
                   onClick={handleExportExcel}
@@ -174,7 +175,9 @@ const Index = () => {
                   Export to Excel
                 </Button>
               </div>
-              <DataTable data={matchedData} />
+              <div className="w-full">
+                <DataTable data={matchedData} />
+              </div>
             </div>
           )}
         </div>

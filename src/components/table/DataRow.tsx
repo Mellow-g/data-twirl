@@ -32,6 +32,7 @@ export const DataRow = ({ record, columnClasses, getRowClassName }: DataRowProps
       <TableCell className={`${columnClasses.cartonType} text-primary font-medium`}>{record.cartonType || "-"}</TableCell>
       <TableCell className={`${columnClasses.orchard} text-primary`}>{record.orchard || "-"}</TableCell>
       <TableCell className={`${columnClasses.consignDate} text-primary`}>{record.consignmentDate || "-"}</TableCell>
+      {/* Changed right alignment to center alignment for better visual alignment with headers */}
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.cartonsSent)}</TableCell>
       <TableCell className={`${columnClasses.numbers} text-primary`}>{formatNumber(record.received)}</TableCell>
       <TableCell className={`${columnClasses.deviation} text-primary`}>{formatNumber(record.deviationSentReceived)}</TableCell>
