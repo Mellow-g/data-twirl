@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -185,7 +184,7 @@ function inferFileType(data: any[]): 'load' | 'sales' | 'unknown' {
     }
     
     const hasMoneyPattern = allValues.some(v => 
-      /^(\$|r|zar|£|\u20AC)?\s*\d+(\.\d{2})?$/.test(v)
+      /^(\$|R|ZAR|£|\u20AC)\s*\d+(\.\d{2})?$/.test(v)
     );
     if (hasMoneyPattern) {
       salesScores += 3;
@@ -399,9 +398,10 @@ function normalizeLoadDataColumns(data: any[]): {
   const keys = Object.keys(sampleRow);
   console.log('Available columns in load data:', keys);
   
-  if (keys.length > 37) {
-    console.log('Column AL (index 37) content sample:', 
-      data.slice(0, 3).map(row => row[keys[37]])
+  // Now looking for consignment date in Column AI (index 34) instead of AL (index 37)
+  if (keys.length > 34) {
+    console.log('Column AI (index 34) content sample:', 
+      data.slice(0, 3).map(row => row[keys[34]])
     );
   }
   
@@ -504,10 +504,11 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
+    // Updated to use column AI (index 34) instead of AL (index 37) for consignment date
     let consignmentDateKey = null;
-    if (keys.length > 37) {
-      consignmentDateKey = keys[37];
-      console.log(`Row ${rowIndex < 3 ? rowIndex : 'later'}: Using Column AL for consignment date: ${row[consignmentDateKey]}`);
+    if (keys.length > 34) {
+      consignmentDateKey = keys[34];
+      console.log(`Row ${rowIndex < 3 ? rowIndex : 'later'}: Using Column AI (index 34) for consignment date: ${row[consignmentDateKey]}`);
     }
     
     if (!consignmentDateKey || !row[consignmentDateKey]) {
