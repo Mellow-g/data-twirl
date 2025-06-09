@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
-export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {
+export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {More actions
   if (type === 'currency') {
     return new Intl.NumberFormat('en-ZA', { 
       style: 'currency', 
@@ -56,13 +56,15 @@ function isValidPalletId(palletId: string | undefined): boolean {
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = new Map();
   const processedPallets = new Set();
-  
+
   // Build a map of Formatted Pallet IDs from load data
   loadData.forEach(load => {
+    const consignNumber = load['Consign']?.toString() || '';
     const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
-    
+
     if (formattedPalletId) {
       loadDataMap.set(formattedPalletId, {
+        consignNumber,
         formattedPalletId,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -89,7 +91,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const soldOnMarket = Number(sale['Sold']) || 0;
 
       return {
-        formattedPalletId: loadInfo ? loadInfo.formattedPalletId : '',
+        consignNumber: loadInfo ? loadInfo.consignNumber : '',
         supplierRef: exportPltId || '', // Using Export Plt ID as the reference
         status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
         variety: loadInfo ? loadInfo.variety : '',
@@ -107,11 +109,12 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   // Add unmatched load records (those not found in sales data)
   loadData.forEach(load => {
     const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
-    
+    const consignNumber = load['Consign']?.toString() || '';
+
     if (formattedPalletId && !processedPallets.has(formattedPalletId)) {
       matchedRecords.push({
-        formattedPalletId,
-        supplierRef: '', // No corresponding Export Plt ID for unmatched load records
+        consignNumber,
+        supplierRef: formattedPalletId, // Using Formatted Pallet ID as the reference
         status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -132,7 +135,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
   const matchedRecords = data.filter(record => record.status === 'Matched');
   const totalValue = data.reduce((sum, record) => sum + record.totalValue, 0);
-  
+
   return {
     totalRecords: data.length,
     matchedCount: matchedRecords.length,
@@ -145,8 +148,8 @@ export function calculateStatistics(data: MatchedRecord[]): Statistics {
 
 export function generateExcel(data: MatchedRecord[]): void {
   const exportData = data.map(item => ({
-    'Formatted Pallet ID': item.formattedPalletId,
-    'Export Plt ID': item.supplierRef,
+    'Consign Number': item.consignNumber,
+    'Pallet ID': item.supplierRef, // Updated label to reflect pallet ID usage
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
@@ -160,7 +163,7 @@ export function generateExcel(data: MatchedRecord[]): void {
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportData);
-  
+
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   const totalValueCol = 'K';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
@@ -173,4 +176,3 @@ export function generateExcel(data: MatchedRecord[]): void {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Matching Report');
   XLSX.writeFile(wb, 'matching_report.xlsx');
-}
