@@ -1,6 +1,6 @@
 import {
   Table,
-  TableBody,More actions
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -79,7 +79,7 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
   // Define column classes with exact pixel widths and consistent alignment
   const columnClasses = {
     consign: "w-[140px] px-4",
-    pallet: "w-[160px] px-4", // Updated from supplier to pallet
+    supplier: "w-[160px] px-4",
     status: "w-[100px] px-4",
     variety: "w-[80px] px-4",
     cartonType: "w-[100px] px-4",
@@ -144,7 +144,7 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-[#1A1F2C] border-b border-primary/20">
               <TableHead className={`${columnClasses.consign} text-primary font-semibold`}>Consign Number</TableHead>
-              <TableHead className={`${columnClasses.pallet} text-primary font-semibold`}>Pallet ID</TableHead>
+              <TableHead className={`${columnClasses.supplier} text-primary font-semibold`}>Supplier Reference</TableHead>
               <TableHead className={`${columnClasses.status} text-primary font-semibold`}>Status</TableHead>
               <TableHead className={`${columnClasses.variety} text-primary font-semibold`}>Variety</TableHead>
               <TableHead className={`${columnClasses.cartonType} text-primary font-semibold`}>Carton Type</TableHead>
@@ -164,7 +164,7 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
                 className={`${getRowClassName(record)} transition-colors`}
               >
                 <TableCell className={columnClasses.consign}>{record.consignNumber}</TableCell>
-                <TableCell className={columnClasses.pallet}>{record.supplierRef}</TableCell>
+                <TableCell className={columnClasses.supplier}>{record.supplierRef}</TableCell>
                 <TableCell className={columnClasses.status}>
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
@@ -196,3 +196,4 @@ export const DataTable = ({ data, onFilteredDataChange }: DataTableProps) => {
       </div>
     </div>
   );
+};
