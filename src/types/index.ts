@@ -1,8 +1,8 @@
-export type FileType = 'load' | 'sales';More actions
+export type FileType = 'load' | 'sales';
 
 export interface FileData {
   [key: string]: any;
-}Add commentMore actions
+}
 
 export interface MatchedRecord {
   consignNumber: string;
@@ -26,3 +26,4 @@ export interface Statistics {
   totalValue: number;
   averageValue: number;
   matchRate: number;
+}
