@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
-export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {More actions
+export function formatNumber(value: number, type: 'number' | 'currency' | 'percent' = 'number'): string {
   if (type === 'currency') {
     return new Intl.NumberFormat('en-ZA', { 
       style: 'currency', 
@@ -40,32 +40,33 @@ export async function processFile(file: File): Promise<any[]> {
   });
 }
 
-function normalizePalletId(palletId: string | number): string {
-  if (!palletId) return '';
-  return palletId.toString().trim().toUpperCase();
+function getLast4Digits(ref: string | number): string {
+  if (!ref) return '';
+  const numbers = ref.toString().replace(/\D/g, '');
+  return numbers.slice(-4);
 }
 
-function isValidPalletId(palletId: string | undefined): boolean {
-  if (!palletId) return false;
-  const normalized = normalizePalletId(palletId);
-  // Check if it's not empty and doesn't contain common invalid indicators
-  if (normalized.includes('DESTINATION:') || normalized.includes('(Pre)')) return false;
-  return normalized.length > 0;
+function isValidSupplierRef(ref: string | undefined): boolean {
+  if (!ref) return false;
+  if (ref.includes('DESTINATION:') || ref.includes('(Pre)')) return false;
+  return /\d/.test(ref);
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = new Map();
-  const processedPallets = new Set();
-
-  // Build a map of Formatted Pallet IDs from load data
+  const processedConsignments = new Set();
+  
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
-    const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
-
-    if (formattedPalletId) {
-      loadDataMap.set(formattedPalletId, {
+    const cartonsSent = Number(load['Sum of # Ctns']);
+    
+    const last4 = getLast4Digits(consignNumber);
+    if (last4) {
+      if (!loadDataMap.has(last4)) {
+        loadDataMap.set(last4, []);
+      }
+      loadDataMap.get(last4).push({
         consignNumber,
-        formattedPalletId,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
         cartonsSent: Number(load['Sum of # Ctns']) || 0
@@ -73,18 +74,22 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
-  // Match sales data with load data using Export Plt ID
   const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
-      const exportPltId = sale['Export Plt ID']?.toString().trim();
-      return isValidPalletId(exportPltId);
+      const supplierRef = sale['Supplier Ref']?.toString().trim();
+      return isValidSupplierRef(supplierRef);
     })
     .map(sale => {
-      const exportPltId = normalizePalletId(sale['Export Plt ID']);
-      const loadInfo = loadDataMap.get(exportPltId);
+      const supplierRef = sale['Supplier Ref'];
+      const last4 = getLast4Digits(supplierRef);
+      const loadRecords = loadDataMap.get(last4) || [];
+      
+      const loadInfo = loadRecords.find(record => 
+        record.cartonsSent === Number(sale['Received'])
+      ) || loadRecords[0];
 
       if (loadInfo) {
-        processedPallets.add(loadInfo.formattedPalletId);
+        processedConsignments.add(loadInfo.consignNumber);
       }
 
       const received = Number(sale['Received']) || 0;
@@ -92,7 +97,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
       return {
         consignNumber: loadInfo ? loadInfo.consignNumber : '',
-        supplierRef: exportPltId || '', // Using Export Plt ID as the reference
+        supplierRef: supplierRef || '',
         status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
         variety: loadInfo ? loadInfo.variety : '',
         cartonType: loadInfo ? loadInfo.cartonType : '',
@@ -106,15 +111,12 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       };
     });
 
-  // Add unmatched load records (those not found in sales data)
   loadData.forEach(load => {
-    const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
     const consignNumber = load['Consign']?.toString() || '';
-
-    if (formattedPalletId && !processedPallets.has(formattedPalletId)) {
+    if (!processedConsignments.has(consignNumber)) {
       matchedRecords.push({
         consignNumber,
-        supplierRef: formattedPalletId, // Using Formatted Pallet ID as the reference
+        supplierRef: '',
         status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -135,7 +137,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 export function calculateStatistics(data: MatchedRecord[]): Statistics {
   const matchedRecords = data.filter(record => record.status === 'Matched');
   const totalValue = data.reduce((sum, record) => sum + record.totalValue, 0);
-
+  
   return {
     totalRecords: data.length,
     matchedCount: matchedRecords.length,
@@ -149,7 +151,7 @@ export function calculateStatistics(data: MatchedRecord[]): Statistics {
 export function generateExcel(data: MatchedRecord[]): void {
   const exportData = data.map(item => ({
     'Consign Number': item.consignNumber,
-    'Pallet ID': item.supplierRef, // Updated label to reflect pallet ID usage
+    'Supplier Ref': item.supplierRef,
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
@@ -163,7 +165,7 @@ export function generateExcel(data: MatchedRecord[]): void {
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportData);
-
+  
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   const totalValueCol = 'K';
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
@@ -176,3 +178,4 @@ export function generateExcel(data: MatchedRecord[]): void {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Matching Report');
   XLSX.writeFile(wb, 'matching_report.xlsx');
+}
