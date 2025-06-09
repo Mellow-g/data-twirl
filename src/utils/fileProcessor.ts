@@ -40,33 +40,32 @@ export async function processFile(file: File): Promise<any[]> {
   });
 }
 
-function getLast4Digits(ref: string | number): string {
-  if (!ref) return '';
-  const numbers = ref.toString().replace(/\D/g, '');
-  return numbers.slice(-4);
+function normalizePalletId(palletId: string | number): string {
+  if (!palletId) return '';
+  return palletId.toString().trim().toUpperCase();
 }
 
-function isValidSupplierRef(ref: string | undefined): boolean {
-  if (!ref) return false;
-  if (ref.includes('DESTINATION:') || ref.includes('(Pre)')) return false;
-  return /\d/.test(ref);
+function isValidPalletId(palletId: string | undefined): boolean {
+  if (!palletId) return false;
+  const normalized = normalizePalletId(palletId);
+  // Check if it's not empty and doesn't contain common invalid indicators
+  if (normalized.includes('DESTINATION:') || normalized.includes('(Pre)')) return false;
+  return normalized.length > 0;
 }
 
 export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const loadDataMap = new Map();
-  const processedConsignments = new Set();
+  const processedPallets = new Set();
   
+  // Build a map of Formatted Pallet IDs from load data
   loadData.forEach(load => {
     const consignNumber = load['Consign']?.toString() || '';
-    const cartonsSent = Number(load['Sum of # Ctns']);
+    const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
     
-    const last4 = getLast4Digits(consignNumber);
-    if (last4) {
-      if (!loadDataMap.has(last4)) {
-        loadDataMap.set(last4, []);
-      }
-      loadDataMap.get(last4).push({
+    if (formattedPalletId) {
+      loadDataMap.set(formattedPalletId, {
         consignNumber,
+        formattedPalletId,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
         cartonsSent: Number(load['Sum of # Ctns']) || 0
@@ -74,22 +73,18 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     }
   });
 
+  // Match sales data with load data using Export Plt ID
   const matchedRecords: MatchedRecord[] = salesData
     .filter(sale => {
-      const supplierRef = sale['Supplier Ref']?.toString().trim();
-      return isValidSupplierRef(supplierRef);
+      const exportPltId = sale['Export Plt ID']?.toString().trim();
+      return isValidPalletId(exportPltId);
     })
     .map(sale => {
-      const supplierRef = sale['Supplier Ref'];
-      const last4 = getLast4Digits(supplierRef);
-      const loadRecords = loadDataMap.get(last4) || [];
-      
-      const loadInfo = loadRecords.find(record => 
-        record.cartonsSent === Number(sale['Received'])
-      ) || loadRecords[0];
+      const exportPltId = normalizePalletId(sale['Export Plt ID']);
+      const loadInfo = loadDataMap.get(exportPltId);
 
       if (loadInfo) {
-        processedConsignments.add(loadInfo.consignNumber);
+        processedPallets.add(loadInfo.formattedPalletId);
       }
 
       const received = Number(sale['Received']) || 0;
@@ -97,7 +92,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
 
       return {
         consignNumber: loadInfo ? loadInfo.consignNumber : '',
-        supplierRef: supplierRef || '',
+        supplierRef: exportPltId || '', // Using Export Plt ID as the reference
         status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
         variety: loadInfo ? loadInfo.variety : '',
         cartonType: loadInfo ? loadInfo.cartonType : '',
@@ -111,12 +106,15 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       };
     });
 
+  // Add unmatched load records (those not found in sales data)
   loadData.forEach(load => {
+    const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
     const consignNumber = load['Consign']?.toString() || '';
-    if (!processedConsignments.has(consignNumber)) {
+    
+    if (formattedPalletId && !processedPallets.has(formattedPalletId)) {
       matchedRecords.push({
         consignNumber,
-        supplierRef: '',
+        supplierRef: formattedPalletId, // Using Formatted Pallet ID as the reference
         status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -151,7 +149,7 @@ export function calculateStatistics(data: MatchedRecord[]): Statistics {
 export function generateExcel(data: MatchedRecord[]): void {
   const exportData = data.map(item => ({
     'Consign Number': item.consignNumber,
-    'Supplier Ref': item.supplierRef,
+    'Pallet ID': item.supplierRef, // Updated label to reflect pallet ID usage
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,
