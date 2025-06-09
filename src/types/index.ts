@@ -1,11 +1,11 @@
-export type FileType = 'load' | 'sales';
+export type FileType = 'load' | 'sales';More actions
 
 export interface FileData {
   [key: string]: any;
-}
+}Add commentMore actions
 
 export interface MatchedRecord {
-  formattedPalletId: string;
+  consignNumber: string;
   supplierRef: string;
   status: 'Matched' | 'Unmatched';
   variety: string;
@@ -26,4 +26,3 @@ export interface Statistics {
   totalValue: number;
   averageValue: number;
   matchRate: number;
-}
