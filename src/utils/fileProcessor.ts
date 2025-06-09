@@ -59,12 +59,10 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   
   // Build a map of Formatted Pallet IDs from load data
   loadData.forEach(load => {
-    const consignNumber = load['Consign']?.toString() || '';
     const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
     
     if (formattedPalletId) {
       loadDataMap.set(formattedPalletId, {
-        consignNumber,
         formattedPalletId,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -91,7 +89,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const soldOnMarket = Number(sale['Sold']) || 0;
 
       return {
-        consignNumber: loadInfo ? loadInfo.consignNumber : '',
+        formattedPalletId: loadInfo ? loadInfo.formattedPalletId : '',
         supplierRef: exportPltId || '', // Using Export Plt ID as the reference
         status: loadInfo ? 'Matched' as const : 'Unmatched' as const,
         variety: loadInfo ? loadInfo.variety : '',
@@ -109,12 +107,11 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   // Add unmatched load records (those not found in sales data)
   loadData.forEach(load => {
     const formattedPalletId = normalizePalletId(load['Formatted Pallet ID'] || '');
-    const consignNumber = load['Consign']?.toString() || '';
     
     if (formattedPalletId && !processedPallets.has(formattedPalletId)) {
       matchedRecords.push({
-        consignNumber,
-        supplierRef: formattedPalletId, // Using Formatted Pallet ID as the reference
+        formattedPalletId,
+        supplierRef: '', // No corresponding Export Plt ID for unmatched load records
         status: 'Unmatched' as const,
         variety: load['Variety'] || '',
         cartonType: load['Ctn Type'] || '',
@@ -148,8 +145,8 @@ export function calculateStatistics(data: MatchedRecord[]): Statistics {
 
 export function generateExcel(data: MatchedRecord[]): void {
   const exportData = data.map(item => ({
-    'Consign Number': item.consignNumber,
-    'Pallet ID': item.supplierRef, // Updated label to reflect pallet ID usage
+    'Formatted Pallet ID': item.formattedPalletId,
+    'Export Plt ID': item.supplierRef,
     'Status': item.status,
     'Variety': item.variety,
     'Carton Type': item.cartonType,

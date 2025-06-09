@@ -5,7 +5,7 @@ export interface FileData {
 }
 
 export interface MatchedRecord {
-  consignNumber: string;
+  formattedPalletId: string;
   supplierRef: string;
   status: 'Matched' | 'Unmatched';
   variety: string;
