@@ -417,6 +417,14 @@ function normalizeLoadDataColumns(data: any[]): {
     );
   }
   
+  // Debug agent column (Column V, index 21)
+  if (keys.length > 21) {
+    console.log('Column V (index 21) - Agent column key:', keys[21]);
+    console.log('Column V (index 21) content sample:', 
+      data.slice(0, 3).map(row => row[keys[21]])
+    );
+  }
+  
   return data.map((row, rowIndex) => {
     const normalizedRow: Record<string, any> = {};
     const keys = Object.keys(row);
@@ -518,15 +526,29 @@ function normalizeLoadDataColumns(data: any[]): {
     
     // Get agent from column V (index 21) - "Agent" column
     let agentKey = '';
+    let agentValue = '';
+    
     if (keys.length > 21) {
       agentKey = keys[21]; // Column V is at index 21
+      agentValue = row[agentKey];
+      
+      if (rowIndex < 3) {
+        console.log(`Row ${rowIndex}: Agent from column V (${agentKey}): "${agentValue}"`);
+      }
     }
     
-    if (!agentKey || !row[agentKey]) {
+    // Fallback to searching for agent columns if Column V doesn't work
+    if (!agentValue) {
       agentKey = keys.find(key => /agent|broker|rep/i.test(key));
+      if (agentKey) {
+        agentValue = row[agentKey];
+        if (rowIndex < 3) {
+          console.log(`Row ${rowIndex}: Agent from fallback search (${agentKey}): "${agentValue}"`);
+        }
+      }
     }
     
-    normalizedRow.agent = agentKey && row[agentKey] ? String(row[agentKey]) : '';
+    normalizedRow.agent = agentValue ? String(agentValue).trim() : '';
     
     // Explicitly get consignment date from column AI (index 34)
     if (keys.length > 34) {
