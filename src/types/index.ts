@@ -19,6 +19,7 @@ export interface MatchedRecord {
   totalValue: number;
   reconciled: boolean;
   orchard?: string; // Added orchard field
+  agent?: string; // Added agent field
   consignmentDate?: string; // Added consignment date field
   // Fields for grouping
   isGroupParent?: boolean;

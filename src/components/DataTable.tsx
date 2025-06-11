@@ -162,10 +162,11 @@ export const DataTable = ({ data }: DataTableProps) => {
     variety: "w-[100px] px-2 text-center",
     cartonType: "w-[100px] px-2 text-center",
     orchard: "w-[100px] px-2 text-left",
+    agent: "w-[80px] px-2 text-center",
     consignDate: "w-[120px] px-2 text-center",
-    numbers: "w-[100px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
-    deviation: "w-[110px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
-    value: "w-[130px] px-2 text-center tabular-nums", // Changed to text-center for better alignment
+    numbers: "w-[100px] px-2 text-center tabular-nums",
+    deviation: "w-[110px] px-2 text-center tabular-nums",
+    value: "w-[130px] px-2 text-center tabular-nums",
     reconciled: "w-[100px] px-2 text-center"
   };
 

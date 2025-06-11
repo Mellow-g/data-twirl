@@ -28,6 +28,9 @@ export const TableHeader = ({ columnClasses }: TableHeaderProps) => {
         <TableHead className={`${columnClasses.orchard} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
           Orchard
         </TableHead>
+        <TableHead className={`${columnClasses.agent} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
+          Agent
+        </TableHead>
         <TableHead className={`${columnClasses.consignDate} text-primary font-semibold sticky top-0 bg-[#1A1F2C] z-10`}>
           Consign Date
         </TableHead>

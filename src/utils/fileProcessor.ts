@@ -357,6 +357,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       totalValue,
       reconciled: cartonsSent === received && received === soldOnMarket,
       orchard: load.orchard || '', 
+      agent: load.agent || '',
       consignmentDate: formattedConsignmentDate
     });
   });
@@ -400,6 +401,7 @@ function normalizeLoadDataColumns(data: any[]): {
   variety: string; 
   cartonType: string; 
   orchard: string; 
+  agent: string;
   consignmentDate: string;
 }[] {
   console.log('Normalizing load data columns with flexible approach...');
@@ -514,6 +516,18 @@ function normalizeLoadDataColumns(data: any[]): {
     
     normalizedRow.orchard = orchardKey && row[orchardKey] ? String(row[orchardKey]) : '';
     
+    // Get agent from column V (index 21) - "Agent" column
+    let agentKey = '';
+    if (keys.length > 21) {
+      agentKey = keys[21]; // Column V is at index 21
+    }
+    
+    if (!agentKey || !row[agentKey]) {
+      agentKey = keys.find(key => /agent|broker|rep/i.test(key));
+    }
+    
+    normalizedRow.agent = agentKey && row[agentKey] ? String(row[agentKey]) : '';
+    
     // Explicitly get consignment date from column AI (index 34)
     if (keys.length > 34) {
       const aiColumnKey = keys[34];
@@ -555,6 +569,7 @@ function normalizeLoadDataColumns(data: any[]): {
       variety: string; 
       cartonType: string; 
       orchard: string; 
+      agent: string;
       consignmentDate: string;
     };
   });
@@ -740,6 +755,7 @@ export function generateExcel(data: MatchedRecord[]): void {
     'Variety': item.variety,
     'Carton Type': item.cartonType,
     'Orchard': item.orchard || '', 
+    'Agent': item.agent || '',
     'Consignment Date': item.consignmentDate || '', 
     '# Ctns Sent': item.cartonsSent,
     'Received': item.received,
