@@ -27,6 +27,17 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
     partialReconciled ? 'bg-yellow-500/20 text-yellow-500' : 
     'bg-destructive/20 text-destructive';
 
+  // Get agent data - show the agent if all child records have the same agent, otherwise "Various"
+  const getGroupAgent = () => {
+    if (groupRecord.childRecords.length === 0) return '-';
+    
+    const agents = [...new Set(groupRecord.childRecords.map(r => r.agent).filter(Boolean))];
+    
+    if (agents.length === 0) return '-';
+    if (agents.length === 1) return agents[0];
+    return 'Various';
+  };
+
   return (
     <>
       <TableRow
@@ -53,6 +64,7 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
         <TableCell className={`${columnClasses.variety} text-primary`}>Group ({groupRecord.childRecords.length})</TableCell>
         <TableCell className={`${columnClasses.cartonType} text-primary font-medium`}>Various</TableCell>
         <TableCell className={`${columnClasses.orchard} text-primary`}>{groupRecord.childRecords.length > 0 && groupRecord.childRecords[0].orchard ? groupRecord.childRecords[0].orchard : '-'}</TableCell>
+        <TableCell className={`${columnClasses.agent} text-primary`}>{getGroupAgent()}</TableCell>
         <TableCell className={`${columnClasses.consignDate} text-primary`}>{groupRecord.childRecords.length > 0 && groupRecord.childRecords[0].consignmentDate ? groupRecord.childRecords[0].consignmentDate : '-'}</TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalCartonsSent || 0)}</TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalReceived || 0)}</TableCell>
