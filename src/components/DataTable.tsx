@@ -222,6 +222,7 @@ export const DataTable = ({ data }: DataTableProps) => {
                       groupRecord={record as GroupedMatchedRecord}
                       columnClasses={columnClasses}
                       getRowClassName={getRowClassName}
+                      allGroupedRecords={showGrouped ? groupedData : []}
                     />
                   );
                 }

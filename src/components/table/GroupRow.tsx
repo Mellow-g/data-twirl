@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react";
 import { GroupedMatchedRecord, MatchedRecord } from "@/types";
 import { formatNumber } from "@/utils/fileProcessor";
 import { ColumnClasses } from "./types";
@@ -12,9 +12,10 @@ interface GroupRowProps {
   groupRecord: GroupedMatchedRecord;
   columnClasses: ColumnClasses;
   getRowClassName: (record: MatchedRecord) => string;
+  allGroupedRecords?: (GroupedMatchedRecord | MatchedRecord)[];
 }
 
-export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupRowProps) => {
+export const GroupRow = ({ groupRecord, columnClasses, getRowClassName, allGroupedRecords = [] }: GroupRowProps) => {
   const [expanded, setExpanded] = useState(false);
   const toggleExpand = () => setExpanded(!expanded);
 
@@ -37,6 +38,30 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
     if (agents.length === 1) return agents[0];
     return 'Various';
   };
+
+  // Check if this group's deviation can be offset by another unreconciled group
+  const hasOffsettingDeviation = () => {
+    if (fullyReconciled) return false;
+    
+    const currentDeviation = (groupRecord.totalCartonsSent || 0) - (groupRecord.totalReceived || 0);
+    if (currentDeviation === 0) return false;
+    
+    // Find other unreconciled groups with offsetting deviations
+    const otherGroups = allGroupedRecords.filter(record => 
+      'isGroupParent' in record && 
+      record.isGroupParent && 
+      !record.reconciled &&
+      record.groupId !== groupRecord.groupId
+    ) as GroupedMatchedRecord[];
+    
+    return otherGroups.some(otherGroup => {
+      const otherDeviation = (otherGroup.totalCartonsSent || 0) - (otherGroup.totalReceived || 0);
+      return currentDeviation + otherDeviation === 0;
+    });
+  };
+
+  const showOffsettingIndicator = hasOffsettingDeviation();
+  const currentDeviation = (groupRecord.totalCartonsSent || 0) - (groupRecord.totalReceived || 0);
 
   return (
     <>
@@ -69,7 +94,21 @@ export const GroupRow = ({ groupRecord, columnClasses, getRowClassName }: GroupR
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalCartonsSent || 0)}</TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalReceived || 0)}</TableCell>
         <TableCell className={`${columnClasses.deviation} text-primary font-bold`}>
-          {formatNumber((groupRecord.totalCartonsSent || 0) - (groupRecord.totalReceived || 0))}
+          <div className="flex items-center justify-center gap-1">
+            {formatNumber(currentDeviation)}
+            {showOffsettingIndicator && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <ArrowUpDown className="h-4 w-4 text-blue-500" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>This deviation can be offset by another unreconciled group</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </TableCell>
         <TableCell className={`${columnClasses.numbers} text-primary font-bold`}>{formatNumber(groupRecord.totalSoldOnMarket || 0)}</TableCell>
         <TableCell className={`${columnClasses.deviation} text-primary font-bold`}>
