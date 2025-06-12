@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { FileData, MatchedRecord, Statistics } from '@/types';
 
@@ -314,6 +315,7 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   const matchedRecords: MatchedRecord[] = [];
   const processedSales = new Set();
 
+  // Only process records that exist in the Load data
   loadDataMap.forEach(load => {
     const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
@@ -362,6 +364,8 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
+  // Only add unmatched sales records if they have valid supplier references
+  // and weren't already processed above
   salesDataMap.forEach(sale => {
     if (processedSales.has(sale)) {
       return;
@@ -373,21 +377,24 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const soldOnMarket = Number(sale.sold) || 0;
       const totalValue = sale.totalValue || 0;
 
+      // Only add this record if it represents actual data from the sales file
+      // and wasn't matched to any load record
       matchedRecords.push({
-        consignNumber: '',
+        consignNumber: '', // Leave blank since no matching load record
         supplierRef: supplierRef,
         status: 'Unmatched',
-        variety: '',
-        cartonType: '',
-        cartonsSent: 0,
+        variety: '', // Leave blank since no load data
+        cartonType: '', // Leave blank since no load data
+        cartonsSent: 0, // No load data available
         received,
         deviationSentReceived: -received,
         soldOnMarket,
         deviationReceivedSold: received - soldOnMarket,
         totalValue,
         reconciled: false,
-        orchard: '', 
-        consignmentDate: ''
+        orchard: '', // Leave blank since no load data
+        agent: '', // Leave blank since no load data
+        consignmentDate: '' // Leave blank since no load data
       });
     }
   });
