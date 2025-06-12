@@ -294,11 +294,12 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     throw new Error('Invalid data format');
   }
   
-  console.log('Running flexible column matching...');
+  console.log('Running one-to-one matching algorithm...');
   
   const loadDataMap = normalizeLoadDataColumns(loadData);
   const salesDataMap = normalizeSalesDataColumns(salesData);
   
+  // Group sales by last 4 digits of supplier reference
   const salesByLast4 = new Map();
   
   salesDataMap.forEach(sale => {
@@ -313,37 +314,46 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
   });
 
   const matchedRecords: MatchedRecord[] = [];
-  const processedSales = new Set();
+  const usedSalesRecords = new Set(); // Track used sales records to prevent reuse
 
-  // Only process records that exist in the Load data
-  loadDataMap.forEach(load => {
+  console.log(`Processing ${loadDataMap.length} load records and ${salesDataMap.length} sales records`);
+
+  // Process each load record and try to match with an unused sales record
+  loadDataMap.forEach((load, index) => {
     const consignNumber = load.consign?.toString() || '';
     const last4 = getLast4Digits(consignNumber);
     const cartonsSent = Number(load.cartons) || 0;
 
     let matchedSale = null;
+    
     if (last4) {
       const possibleSales = salesByLast4.get(last4) || [];
+      
+      // Find an unused sales record that matches this load record
       matchedSale = possibleSales.find(sale => 
-        Number(sale.sent) === cartonsSent
+        !usedSalesRecords.has(sale) && Number(sale.sent) === cartonsSent
       );
       
-      if (!matchedSale && possibleSales.length > 0) {
-        matchedSale = possibleSales[0];
+      // If no exact quantity match, try to find any unused sales record with same last4
+      if (!matchedSale) {
+        matchedSale = possibleSales.find(sale => !usedSalesRecords.has(sale));
       }
       
+      // Mark the sales record as used if we found one
       if (matchedSale) {
-        processedSales.add(matchedSale);
+        usedSalesRecords.add(matchedSale);
+        console.log(`Matched load record ${index + 1} (${consignNumber}) with sales record. Sent: ${cartonsSent}, Received: ${matchedSale.sent}`);
+      } else {
+        console.log(`No unused sales record found for load record ${index + 1} (${consignNumber})`);
       }
     }
 
+    // Create the matched record with sales data only if we found an unused sales record
     const received = matchedSale ? Number(matchedSale.sent) || 0 : 0;
     const soldOnMarket = matchedSale ? Number(matchedSale.sold) || 0 : 0;
     const totalValue = matchedSale ? matchedSale.totalValue || 0 : 0;
     
     const formattedConsignmentDate = formatDate(load.consignmentDate || '');
-
-    console.log(`Record ${consignNumber} - Original Date: ${load.consignmentDate}, Formatted: ${formattedConsignmentDate}`);
 
     matchedRecords.push({
       consignNumber,
@@ -364,11 +374,10 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
     });
   });
 
-  // Only add unmatched sales records if they have valid supplier references
-  // and weren't already processed above
+  // Add any remaining unmatched sales records that weren't used
   salesDataMap.forEach(sale => {
-    if (processedSales.has(sale)) {
-      return;
+    if (usedSalesRecords.has(sale)) {
+      return; // Skip sales records that were already matched
     }
     
     const supplierRef = sale.supplierRef?.toString().trim();
@@ -377,14 +386,14 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
       const soldOnMarket = Number(sale.sold) || 0;
       const totalValue = sale.totalValue || 0;
 
-      // Only add this record if it represents actual data from the sales file
-      // and wasn't matched to any load record
+      console.log(`Adding unmatched sales record: ${supplierRef}`);
+
       matchedRecords.push({
-        consignNumber: '', // Leave blank since no matching load record
+        consignNumber: '', // No matching load record
         supplierRef: supplierRef,
         status: 'Unmatched',
-        variety: '', // Leave blank since no load data
-        cartonType: '', // Leave blank since no load data
+        variety: '', // No load data available
+        cartonType: '', // No load data available
         cartonsSent: 0, // No load data available
         received,
         deviationSentReceived: -received,
@@ -392,12 +401,14 @@ export function matchData(loadData: any[], salesData: any[]): MatchedRecord[] {
         deviationReceivedSold: received - soldOnMarket,
         totalValue,
         reconciled: false,
-        orchard: '', // Leave blank since no load data
-        agent: '', // Leave blank since no load data
-        consignmentDate: '' // Leave blank since no load data
+        orchard: '', // No load data available
+        agent: '', // No load data available
+        consignmentDate: '' // No load data available
       });
     }
   });
+
+  console.log(`Final result: ${matchedRecords.length} total records, ${matchedRecords.filter(r => r.status === 'Matched').length} matched, ${usedSalesRecords.size} sales records used`);
 
   return matchedRecords;
 }
